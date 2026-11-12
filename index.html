@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Ops Astro Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Command-centre board on warm paper: ticker strip, then modular ruled panels. Single theme by choice. */
+:root{
+  --paper:#EAE0CE; --panel:#F4EEE2; --ink:#1C1915; --muted:#6B6355; --rule:#BDB09B; --alert:#B3261E;
+  --fire:#C0392B; --earth:#3D7A3A; --air:#A87E00; --water:#1F5FA3;
+  --fire-bg:#F3D9D3; --earth-bg:#D9E8D3; --air-bg:#F3E6B8; --water-bg:#D4E1F1;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:13px/1.45 var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--ink)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--alert);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px}
+/* header */
+header{border-bottom:2px solid var(--ink);background:var(--paper)}
+.hdr{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 0}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.brand b{font:700 24px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.brand small{display:block;font:500 10px/1.2 var(--mono);color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+nav{display:flex;gap:2px;flex-wrap:wrap;margin-left:auto}
+nav a{font:600 15px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;padding:7px 10px;border:1px solid transparent}
+nav a[aria-current="page"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+nav a:hover{border-color:var(--ink)}
+.zod{display:flex;border:1px solid var(--ink)}
+.zod button{border:0;background:transparent;padding:6px 10px;cursor:pointer;font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.zod button[aria-pressed="true"]{background:var(--alert);color:#fff}
+/* ticker */
+.ticker{border-bottom:1px solid var(--ink);background:var(--ink);color:var(--paper);overflow-x:auto;white-space:nowrap}
+.ticker .wrap{display:flex;gap:0;font-size:12px}
+.tk{padding:7px 14px 7px 0;margin-right:14px;border-right:1px solid #4a443b;flex:none}
+.tk:last-child{border-right:0}
+.tk i{font-style:normal;color:#A99F8E;margin-right:6px;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#E5483B;margin-right:7px;animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.live::before{animation:none}}
+/* panels */
+main{padding:16px 0 40px}
+.grid{display:grid;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--ink)}
+.ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--ink)}
+.ph h2{margin:0;font:700 17px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;text-wrap:balance}
+.ph .meta{color:var(--muted);font-size:11px;margin-left:auto}
+.pb{padding:10px}
+.sec{display:none}
+.sec.on{display:block}
+/* board */
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0}
+.cell{padding:8px 10px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);min-height:74px}
+.cell .pl{font:600 15px/1.1 var(--display);letter-spacing:.05em;text-transform:uppercase;display:flex;gap:6px;align-items:baseline}
+.cell .deg{color:var(--muted);font-size:11px;margin-top:4px}
+.rx{font:600 10px/1 var(--mono);color:#fff;background:var(--alert);padding:2px 4px;margin-left:auto}
+/* sign chip */
+.sg{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-left:3px solid;font-weight:600;white-space:nowrap}
+.e-fire{color:var(--fire);background:var(--fire-bg);border-color:var(--fire)}
+.e-earth{color:var(--earth);background:var(--earth-bg);border-color:var(--earth)}
+.e-air{color:#7A5C00;background:var(--air-bg);border-color:var(--air)}
+.e-water{color:var(--water);background:var(--water-bg);border-color:var(--water)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;font-size:11px}
+/* controls */
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px;border-bottom:1px solid var(--rule)}
+.chip{border:1px solid var(--ink);background:transparent;padding:4px 8px;cursor:pointer;font-size:12px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.ctrl label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.ctrl input[type=date],.ctrl select{border:1px solid var(--ink);background:var(--paper);padding:3px 6px}
+.ctrl input[type=number]{width:80px;border:1px solid var(--ink);background:var(--paper);padding:3px 6px}
+/* event list */
+.day{display:grid;grid-template-columns:110px 1fr;border-bottom:1px solid var(--rule)}
+.day:last-child{border-bottom:0}
+.dh{padding:8px 10px;border-right:1px solid var(--rule)}
+.dh b{display:block;font:700 18px/1 var(--display);letter-spacing:.04em}
+.dh span{font-size:11px;color:var(--muted);text-transform:uppercase}
+.dh.today{background:var(--ink);color:var(--paper)}
+.dh.today span{color:#C9BFAE}
+.evs{display:flex;flex-direction:column}
+.ev{display:grid;grid-template-columns:58px 92px 1fr;gap:8px;padding:6px 10px;border-bottom:1px dotted var(--rule);align-items:baseline}
+.ev:last-child{border-bottom:0}
+.ev .t{color:var(--muted)}
+.tag{font:600 10px/1.6 var(--mono);text-transform:uppercase;letter-spacing:.06em;padding:0 5px;border:1px solid currentColor;justify-self:start}
+.tag.ecl{color:#fff;background:var(--alert);border-color:var(--alert)}
+.tag.stn{color:var(--alert)}
+.tag.lun{color:var(--ink)}
+.tag.asp{color:var(--muted)}
+.tag.ing{color:var(--water)}
+.ev .x{font-size:12px}
+.ev .sub{color:var(--muted);font-size:11px}
+.empty{padding:20px 10px;color:var(--muted)}
+.more{display:block;margin:10px;padding:6px 10px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:var(--paper)}
+.tw{overflow-x:auto}
+.past{opacity:.55}
+.next td{background:#FBE3DF}
+.note{font-size:12px;color:var(--muted);max-width:75ch}
+.method{max-width:80ch}
+.method h3{font:700 16px/1.2 var(--display);letter-spacing:.06em;text-transform:uppercase;margin:18px 0 6px}
+.method p,.method li{font-size:12.5px}
+.ok{color:var(--earth);font-weight:600}
+footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-size:11px}
+.loading{padding:40px;text-align:center;color:var(--muted)}
+@media (max-width:640px){
+  .day{grid-template-columns:1fr}
+  .dh{border-right:0;border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:baseline}
+  .ev{grid-template-columns:48px 1fr}
+  .ev .tag{grid-column:2}
+  .ev .x{grid-column:1 / -1}
+  nav{margin-left:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap hdr">
+    <a class="brand" href="#feed" aria-label="Sky Ops home">
+      <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="17" fill="none" stroke="#1C1915" stroke-width="2"/>
+        <circle cx="20" cy="20" r="11" fill="none" stroke="#1C1915" stroke-width="1" stroke-dasharray="2 2"/>
+        <g stroke="#1C1915" stroke-width="1.4">
+          <line x1="20" y1="1" x2="20" y2="6"/><line x1="20" y1="34" x2="20" y2="39"/><line x1="1" y1="20" x2="6" y2="20"/><line x1="34" y1="20" x2="39" y2="20"/>
+        </g>
+        <g stroke="#1C1915" stroke-width="1"><line x1="20" y1="13" x2="20" y2="27"/><line x1="13" y1="20" x2="27" y2="20"/></g>
+        <circle cx="31.5" cy="11" r="3.4" fill="#B3261E"/>
+        <circle cx="20" cy="20" r="1.8" fill="#1C1915"/>
+      </svg>
+      <span><b>Sky Ops</b><small>Astro calendar · IST</small></span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#feed">90 Days</a><a href="#planets">Planets</a><a href="#eclipses">Eclipses</a><a href="#retrogrades">Retrogrades</a><a href="#positions">Positions</a><a href="#method">Method</a>
+    </nav>
+    <div class="zod" role="group" aria-label="Zodiac">
+      <button id="z-s" type="button" aria-pressed="true">Sidereal · Lahiri</button>
+      <button id="z-t" type="button" aria-pressed="false">Tropical</button>
+    </div>
+  </div>
+</header>
+<div class="ticker" aria-live="off"><div class="wrap" id="ticker"><span class="tk live"><i>IST</i><span id="clock">--:--:--</span></span></div></div>
+
+<main class="wrap">
+  <div id="loading" class="loading">Loading ephemeris data…</div>
+
+  <!-- 90 DAYS -->
+  <section id="sec-feed" class="sec grid">
+    <div class="panel">
+      <div class="ph"><h2>Sky now</h2><span class="meta" id="now-meta"></span></div>
+      <div class="board" id="board"></div>
+      <div class="pb legend">
+        <span class="sg e-fire">Fire</span><span class="sg e-earth">Earth</span><span class="sg e-air">Air</span><span class="sg e-water">Water</span>
+        <span class="note">Sign from the last exact ingress. Degree shown is at 05:30 IST today.</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Next 90 days · every event</h2><span class="meta" id="feed-meta"></span></div>
+      <div class="ctrl" id="feed-filters"></div>
+      <div id="feed"></div>
+    </div>
+  </section>
+
+  <!-- PLANETS -->
+  <section id="sec-planets" class="sec">
+    <div class="panel">
+      <div class="ph"><h2>Planet log</h2><span class="meta" id="pl-meta"></span></div>
+      <div class="ctrl" id="pl-pick" role="group" aria-label="Planet"></div>
+      <div class="ctrl">
+        <label for="pl-from">From</label><input type="date" id="pl-from" min="1500-01-01" max="2100-12-31">
+        <label for="pl-to">To</label><input type="date" id="pl-to" min="1500-01-01" max="2100-12-31">
+        <span id="pl-presets" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+      </div>
+      <div class="ctrl" id="pl-types"></div>
+      <div class="pb note" id="pl-cov"></div>
+      <div id="pl-list"></div>
+    </div>
+  </section>
+
+  <!-- ECLIPSES -->
+  <section id="sec-eclipses" class="sec">
+    <div class="panel">
+      <div class="ph"><h2>Eclipses 1959–2050</h2><span class="meta" id="ec-meta"></span></div>
+      <div class="ctrl">
+        <span id="ec-kind" style="display:flex;gap:6px"></span>
+        <label for="ec-from">From year</label><input type="number" id="ec-from" min="1959" max="2050" value="1959">
+        <label for="ec-to">To year</label><input type="number" id="ec-to" min="1959" max="2050" value="2050">
+      </div>
+      <div class="tw"><table><thead><tr><th>Date</th><th>Time IST</th><th>Eclipse</th><th>Type</th><th>Position</th><th>In</th></tr></thead><tbody id="ec-body"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- RETROGRADES -->
+  <section id="sec-retrogrades" class="sec">
+    <div class="panel">
+      <div class="ph"><h2>Retrograde periods</h2><span class="meta" id="rt-meta"></span></div>
+      <div class="ctrl" id="rt-pick" role="group" aria-label="Planet"></div>
+      <div class="ctrl">
+        <label for="rt-from">From year</label><input type="number" id="rt-from" min="1500" max="2100">
+        <label for="rt-to">To year</label><input type="number" id="rt-to" min="1500" max="2100">
+      </div>
+      <div class="tw"><table><thead><tr><th>Stations retrograde</th><th>At</th><th>Stations direct</th><th>At</th><th>Days</th></tr></thead><tbody id="rt-body"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- POSITIONS -->
+  <section id="sec-positions" class="sec">
+    <div class="panel">
+      <div class="ph"><h2>Planet positions</h2><span class="meta">05:30 IST · tropical and sidereal side by side</span></div>
+      <div class="ctrl">
+        <label for="pos-date">Date</label><input type="date" id="pos-date">
+        <button class="chip" type="button" id="pos-prev">◀ Day</button><button class="chip" type="button" id="pos-next">Day ▶</button><button class="chip" type="button" id="pos-today">Today</button>
+      </div>
+      <div class="tw"><table><thead><tr><th>Body</th><th>Tropical</th><th>Sidereal (Lahiri)</th><th>Motion</th></tr></thead><tbody id="pos-body"></tbody></table></div>
+      <div class="pb note" id="pos-note"></div>
+    </div>
+  </section>
+
+  <!-- METHOD -->
+  <section id="sec-method" class="sec">
+    <div class="panel"><div class="ph"><h2>Method, coverage and checks</h2></div>
+    <div class="pb method">
+      <h3>Coverage</h3>
+      <ul>
+        <li><b>12 Nov 2023 – 12 Nov 2029</b> (3 years either side of build date): every event. Sign ingresses for all bodies including Moon, Chiron, Rahu and Ketu in both zodiacs; retrograde and direct stations; the five major aspects (conjunction, sextile, square, trine, opposition) between Sun, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto and Chiron; new and full moons; eclipses; daily positions.</li>
+        <li><b>1959 – 2050</b>: eclipses, plus slow planets (Jupiter, Saturn, Uranus, Neptune, Pluto, Chiron, Rahu, Ketu): ingresses in both zodiacs, stations, and major aspects between them.</li>
+        <li><b>1500 – 2100</b>: Saturn, Uranus, Neptune and Pluto: ingresses in both zodiacs, stations, and major aspects between them.</li>
+        <li>Moon aspects are left out on purpose: they add about a thousand entries a month.</li>
+      </ul>
+      <h3>How the data was made</h3>
+      <p>All times come from Swiss Ephemeris 2.10 (Astrodienst), the engine behind astro.com and astro-seek. Sidereal uses the Lahiri ayanamsa (true, with nutation). Rahu and Ketu are the mean node, the default in Indian panchangs. Times are Indian time (UTC+5:30) throughout, rounded to the minute. Eclipse times are greatest eclipse; dates before 15 Oct 1582 are Julian calendar.</p>
+      <h3>Checked against published tables</h3>
+      <ul>
+        <li><span class="ok">412 / 412</span> eclipses 1959–2050 match NASA / Espenak catalogues for date and type, all within 2 minutes.</li>
+        <li><span class="ok">37 / 37</span> tropical Saturn ingresses 1959–2000 match astro.com's published list to the minute.</li>
+        <li><span class="ok">44 / 44</span> sidereal ingresses in 2025–27 (Sun, Venus, Mars, Jupiter, Saturn) match PanchangBodh's New Delhi tables within 1 minute; Saturn and Jupiter retrograde dates match too.</li>
+        <li><span class="ok">16 / 16</span> 2026 events (ingresses, stations, aspects, new moon) from Alabe's "Hot Degrees 2026" match within 1 minute.</li>
+        <li>Pluto and Neptune ingresses from the 1800s differ from astro.com's list by 4–11 minutes. That comes from a different JPL ephemeris version, and the gap grows further back. Read pre-1900 outer-planet times as accurate to about a quarter hour, and pre-1800 times more loosely.</li>
+        <li>Drik Panchang's Sankranti times run about 6 minutes later than standard Lahiri, so its sidereal times differ slightly from this page. For slow planets the gap can be an hour or more.</li>
+      </ul>
+      <p>Sources used for checks: NASA Eclipse Web Site (eclipse.gsfc.nasa.gov), EclipseWise, astro.com Swiss Ephemeris ingress files, PanchangBodh, Alabe Hot Degrees 2026, Drik Panchang.</p>
+    </div></div>
+  </section>
+</main>
+<footer><div class="wrap">Sky Ops · Swiss Ephemeris data, checked against NASA, astro.com and panchang tables · Built 12 Nov 2026</div></footer>
+
+<script>
+(function(){
+const V='︎';
+const SIGNS=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+const VED=['Mesha','Vrishabha','Mithuna','Karka','Simha','Kanya','Tula','Vrishchika','Dhanu','Makara','Kumbha','Meena'];
+const SGL=['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+const ELEM=['fire','earth','air','water'];
+const PG={Sun:'☉',Moon:'☽',Mercury:'☿',Venus:'♀',Mars:'♂',Jupiter:'♃',Saturn:'♄',Uranus:'♅',Neptune:'♆',Pluto:'♇',Chiron:'⚷',Rahu:'☊',Ketu:'☋'};
+const BODIES=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron','Rahu','Ketu'];
+const ASP={0:['☌','conjunction'],60:['⚹','sextile'],90:['□','square'],120:['△','trine'],180:['☍','opposition']};
+const DEEP=['Saturn','Uranus','Neptune','Pluto'], SLOW=['Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron','Rahu','Ketu'];
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let Z='s'; try{const s=localStorage.getItem('skyops-z'); if(s==='t'||s==='s') Z=s;}catch(e){}
+let D,EV,META;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---- time helpers (IST) ----
+function istParts(d){const t=new Date(d.getTime()+5.5*3600e3);return {y:t.getUTCFullYear(),m:t.getUTCMonth()+1,d:t.getUTCDate(),H:t.getUTCHours(),M:t.getUTCMinutes(),S:t.getUTCSeconds(),w:t.getUTCDay()};}
+const pad=n=>String(n).padStart(2,'0');
+function istDate(d){const p=istParts(d);return `${p.y}-${pad(p.m)}-${pad(p.d)}`;}
+function addDays(s,n){const t=new Date(s+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10);}
+function nowJD(){return Date.now()/864e5+2440587.5;}
+function fmtDate(s){const [y,m,d]=s.split('-');return `${+d} ${MON[+m-1]} ${y}`;}
+function wday(s){const y=+s.slice(0,4); if(y<1583) return ''; return WD[new Date(s+'T00:00:00Z').getUTCDay()];}
+
+// ---- formatting ----
+function sign(i,withV){const el=ELEM[i%4];return `<span class="sg e-${el}" title="${SIGNS[i]} · ${VED[i]}">${SGL[i]+V} ${Z==='s'&&withV!==false?VED[i]:SIGNS[i]}</span>`;}
+function degStr(lon){const s=Math.floor(lon/30),d=lon-30*s;let dd=Math.floor(d),mm=Math.round((d-dd)*60);if(mm===60){dd++;mm=0;}return {s,txt:`${dd}°${pad(mm)}′`};}
+function posHtml(lon){const p=degStr(lon);return `${p.txt} ${sign(p.s)}`;}
+function lonOf(e,two){return Z==='s'?(two?e.ls2:e.ls):(two?e.lt2:e.lt);}
+function pl(p){return `<b>${PG[p]+V} ${p}</b>`;}
+function evRow(e,showDate){
+  let tag='',txt='',sub='';
+  if(e.T==='ing'){
+    tag='<span class="tag ing">Ingress</span>';
+    txt=`${pl(e.p)} enters ${sign(e.s)}`;
+    if(e.r && e.p!=='Rahu' && e.p!=='Ketu') sub='retrograde re-entry';
+    if(Z==='t'&&e.p==='Sun'&&e.s%3===0) sub=['March equinox','','','June solstice','','','September equinox','','','December solstice'][e.s];
+    if(Z==='s'&&e.p==='Sun') sub=`${VED[e.s]} Sankranti`;
+  } else if(e.T==='stn'){
+    tag='<span class="tag stn">Station</span>';
+    txt=`${pl(e.p)} stations <b>${e.r?'retrograde':'direct'}</b> at ${posHtml(lonOf(e))}`;
+  } else if(e.T==='asp'){
+    tag='<span class="tag asp">Aspect</span>';
+    const a=ASP[e.a];
+    txt=`${pl(e.p)} <b>${a[0]+V}</b> ${pl(e.q)} <span class="sub">${a[1]}</span>`;
+    sub=`${posHtml(lonOf(e))}${e.r?' R':''} · ${posHtml(lonOf(e,1))}${e.r2?' R':''}`;
+  } else if(e.T==='ecl'){
+    tag='<span class="tag ecl">Eclipse</span>';
+    txt=`<b>${e.k} ${e.x} Eclipse</b> at ${posHtml(lonOf(e))}`;
+  } else if(e.T==='lun'){
+    tag='<span class="tag lun">'+(e.x==='New'?'● New':'○ Full')+'</span>';
+    txt=`<b>${e.x} Moon</b> at ${posHtml(lonOf(e))}`;
+  }
+  const t=showDate?`${fmtDate(e.d)}<br>${e.h}`:e.h;
+  return `<div class="ev"><span class="t">${t}</span>${tag}<span class="x">${txt}${sub?`<div class="sub">${sub}</div>`:''}</span></div>`;
+}
+function visible(e){return e.T!=='ing'||e.z===Z;}
+function groupByDay(list,today){
+  if(!list.length) return '<div class="empty">No events match these filters.</div>';
+  let html='',cur=null,buf='';
+  const flush=()=>{if(cur){const y=+cur.slice(0,4);html+=`<div class="day"><div class="dh${cur===today?' today':''}"><b>${fmtDate(cur).replace(/ \d{4}$/,'')}</b><span>${wday(cur)} ${y}${y<1583?' · Julian':''}${cur===today?' · today':''}</span></div><div class="evs">${buf}</div></div>`;}};
+  for(const e of list){if(e.d!==cur){flush();cur=e.d;buf='';}buf+=evRow(e);}
+  flush();return html;
+}
+function lowerBound(jd){let lo=0,hi=EV.length;while(lo<hi){const m=(lo+hi)>>1;if(EV[m].j<jd)lo=m+1;else hi=m;}return lo;}
+
+// ---- current state from events ----
+function currentState(){
+  const nj=nowJD(),st={};
+  for(const b of BODIES) st[b]={s:null,r:(b==='Rahu'||b==='Ketu')};
+  const end=lowerBound(nj);
+  for(let i=end-1;i>=0;i--){const e=EV[i];
+    if(e.T==='ing'&&e.z===Z&&st[e.p]&&st[e.p].s===null) st[e.p].s=e.s;
+    if(e.T==='stn'&&st[e.p]&&st[e.p].rk===undefined){st[e.p].rk=1;st[e.p].r=e.r;}
+    if(BODIES.every(b=>st[b].s!==null)&&i<end-3000) break;}
+  return st;
+}
+function posToday(){const start=META.posStart,today=istDate(new Date());const idx=Math.round((Date.parse(today)-Date.parse(start))/864e5);return D.pos[idx]?{row:D.pos[idx],date:today}:null;}
+function lonFromRow(row,b,z){let i=META.posNames.indexOf(b==='Ketu'?'Rahu':b);let v=row[i];const r=v<0||(b==='Rahu'||b==='Ketu');v=Math.abs(v);if(b==='Ketu')v=(v+180)%360;if(z==='s')v=((v-row[row.length-1])%360+360)%360;return {v,r};}
+
+function renderBoard(){
+  const st=currentState(),pt=posToday();
+  $('board').innerHTML=BODIES.map(b=>{const s=st[b];let deg='';
+    if(pt){const L=lonFromRow(pt.row,b,Z);deg=degStr(L.v).txt+' at 05:30';}
+    return `<div class="cell"><div class="pl">${PG[b]+V} ${b}${s.r?'<span class="rx">R</span>':''}</div><div style="margin-top:6px">${s.s!==null?sign(s.s):'—'}</div><div class="deg">${deg}</div></div>`;}).join('');
+  $('now-meta').textContent=(Z==='s'?'Sidereal · Lahiri':'Tropical')+' · '+fmtDate(istDate(new Date()));
+}
+
+// ---- ticker ----
+function renderTicker(){
+  const nj=nowJD(),st=currentState(),i=lowerBound(nj);
+  const nextOf=f=>{for(let k=i;k<EV.length;k++){if(f(EV[k]))return EV[k];}return null;};
+  const ecl=nextOf(e=>e.T==='ecl'),lun=nextOf(e=>e.T==='lun'),stn=nextOf(e=>e.T==='stn'),ing=nextOf(e=>e.T==='ing'&&e.z===Z&&e.p!=='Moon');
+  const retro=BODIES.filter(b=>st[b].r&&b!=='Rahu'&&b!=='Ketu');
+  const days=e=>Math.max(0,Math.ceil(e.j-nj));
+  const items=[
+    `<span class="tk"><i>Moon</i>${st.Moon.s!==null?SGL[st.Moon.s]+V+' '+(Z==='s'?VED[st.Moon.s]:SIGNS[st.Moon.s]):''}</span>`,
+    `<span class="tk"><i>Sun</i>${st.Sun.s!==null?SGL[st.Sun.s]+V+' '+(Z==='s'?VED[st.Sun.s]:SIGNS[st.Sun.s]):''}</span>`,
+    `<span class="tk"><i>Retro</i>${retro.length?retro.map(b=>PG[b]+V+' '+b).join(', '):'none'}</span>`,
+    lun?`<span class="tk"><i>${lun.x} moon</i>${fmtDate(lun.d)} ${lun.h} · T-${days(lun)}d</span>`:'',
+    ecl?`<span class="tk"><i>Next eclipse</i>${ecl.k} ${ecl.x} · ${fmtDate(ecl.d)} · T-${days(ecl)}d</span>`:'',
+    stn?`<span class="tk"><i>Next station</i>${PG[stn.p]+V} ${stn.p} ${stn.r?'R':'D'} · ${fmtDate(stn.d)}</span>`:'',
+    ing?`<span class="tk"><i>Next ingress</i>${PG[ing.p]+V} ${ing.p} → ${Z==='s'?VED[ing.s]:SIGNS[ing.s]} · ${fmtDate(ing.d)}</span>`:'',
+    `<span class="tk"><i>Zodiac</i>${Z==='s'?'Sidereal Lahiri':'Tropical'}</span>`];
+  $('ticker').innerHTML=`<span class="tk live"><i>IST</i><span id="clock"></span></span>`+items.join('');
+  tick();
+}
+function tick(){const p=istParts(new Date());const c=$('clock');if(c)c.textContent=`${pad(p.H)}:${pad(p.M)}:${pad(p.S)} · ${p.d} ${MON[p.m-1]} ${p.y}`;}
+
+// ---- feed ----
+const FT=[['ing','Ingresses'],['moon','Moon ingresses'],['asp','Aspects'],['stn','Stations'],['ecl','Eclipses'],['lun','New & full moon']];
+let feedOn=new Set(FT.map(f=>f[0]));
+function typeKey(e){return e.T==='ing'&&e.p==='Moon'?'moon':e.T;}
+function renderFeedFilters(){
+  $('feed-filters').innerHTML='<label>Show</label>'+FT.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${feedOn.has(k)}">${l}</button>`).join('');
+  $('feed-filters').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;feedOn.has(k)?feedOn.delete(k):feedOn.add(k);renderFeedFilters();renderFeed();});
+}
+function renderFeed(){
+  const today=istDate(new Date()),end=addDays(today,90);
+  const list=EV.slice(lowerBound(nowJD()-1.5)).filter(e=>e.d>=today&&e.d<=end&&visible(e)&&feedOn.has(typeKey(e)));
+  $('feed').innerHTML=groupByDay(list,today);
+  $('feed-meta').textContent=`${fmtDate(today)} → ${fmtDate(end)} · ${list.length} events`;
+}
+
+// ---- planets ----
+let curPl='Saturn', plTypes=new Set(['ing','stn','asp','ecl']), plLimit=400;
+function renderPlPick(){
+  $('pl-pick').innerHTML=BODIES.map(b=>`<button class="chip" type="button" data-b="${b}" aria-pressed="${b===curPl}">${PG[b]+V} ${b}</button>`).join('');
+  $('pl-pick').querySelectorAll('button').forEach(x=>x.onclick=()=>{curPl=x.dataset.b;plLimit=400;clampRange();renderPlPick();renderPlanet();});
+  const tps=[['ing','Ingresses'],['stn','Stations'],['asp','Aspects']];
+  if(curPl==='Sun'||curPl==='Moon') tps.push(['ecl','Eclipses & lunations']);
+  $('pl-types').innerHTML='<label>Show</label>'+tps.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${plTypes.has(k)}">${l}</button>`).join('');
+  $('pl-types').querySelectorAll('button').forEach(x=>x.onclick=()=>{const k=x.dataset.k;plTypes.has(k)?plTypes.delete(k):plTypes.add(k);renderPlPick();renderPlanet();});
+  const today=istDate(new Date()),y=+today.slice(0,4);
+  const pre=[['Next 90 days',today,addDays(today,90)],[`Year ${y}`,`${y}-01-01`,`${y}-12-31`],['Detailed window',META.fullFrom,META.fullTo]];
+  if(SLOW.includes(curPl)) pre.push(['1959–2050','1959-01-01','2050-12-31']);
+  if(DEEP.includes(curPl)) pre.push(['1500–2100','1500-01-01','2100-12-31']);
+  $('pl-presets').innerHTML=pre.map((p,i)=>`<button class="chip" type="button" data-i="${i}">${p[0]}</button>`).join('');
+  $('pl-presets').querySelectorAll('button').forEach(x=>x.onclick=()=>{const p=pre[+x.dataset.i];$('pl-from').value=p[1];$('pl-to').value=p[2];plLimit=400;renderPlanet();});
+}
+function clampRange(){
+  const lo=DEEP.includes(curPl)?'1500-01-01':SLOW.includes(curPl)?'1959-01-01':META.fullFrom;
+  const hi=DEEP.includes(curPl)?'2100-12-31':SLOW.includes(curPl)?'2050-12-31':META.fullTo;
+  if($('pl-from').value<lo)$('pl-from').value=lo; if($('pl-to').value>hi)$('pl-to').value=hi;
+}
+function coverageNote(){
+  if(DEEP.includes(curPl)) return `${curPl}: ingresses, stations and aspects with Saturn–Pluto from 1500 to 2100; aspects with Jupiter and Chiron from 1959 to 2050; aspects with faster planets only from ${fmtDate(META.fullFrom)} to ${fmtDate(META.fullTo)}.`;
+  if(SLOW.includes(curPl)) return `${curPl}: ingresses${curPl==='Rahu'||curPl==='Ketu'?'':', stations and aspects with other slow planets'} from 1959 to 2050; aspects with faster planets only from ${fmtDate(META.fullFrom)} to ${fmtDate(META.fullTo)}.`;
+  return `${curPl}: full detail from ${fmtDate(META.fullFrom)} to ${fmtDate(META.fullTo)}. Older and later years cover only eclipses and slow planets.`;
+}
+function renderPlanet(){
+  const f=$('pl-from').value,t=$('pl-to').value;
+  const lum=(curPl==='Sun'||curPl==='Moon')&&plTypes.has('ecl');
+  const list=EV.filter(e=>e.d>=f&&e.d<=t&&visible(e)&&(
+    ((e.p===curPl||e.q===curPl)&&plTypes.has(e.T))||(lum&&(e.T==='ecl'||e.T==='lun'))));
+  const shown=list.slice(0,plLimit);
+  $('pl-list').innerHTML=groupByDay(shown,istDate(new Date()))+(list.length>plLimit?`<button class="chip more" type="button" id="pl-more">Show ${Math.min(400,list.length-plLimit)} more (${list.length-plLimit} left)</button>`:'');
+  if($('pl-more'))$('pl-more').onclick=()=>{plLimit+=400;renderPlanet();};
+  $('pl-meta').textContent=`${list.length} events · ${Z==='s'?'Sidereal':'Tropical'} ingresses`;
+  $('pl-cov').textContent=coverageNote();
+}
+
+// ---- eclipses ----
+let ecKind='all';
+function renderEclipses(){
+  $('ec-kind').innerHTML=[['all','All'],['Solar','Solar'],['Lunar','Lunar']].map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${ecKind===k}">${l}</button>`).join('');
+  $('ec-kind').querySelectorAll('button').forEach(x=>x.onclick=()=>{ecKind=x.dataset.k;renderEclipses();});
+  const a=+$('ec-from').value||1959,b=+$('ec-to').value||2050,nj=nowJD();
+  const list=EV.filter(e=>e.T==='ecl'&&(ecKind==='all'||e.x===ecKind)&&+e.d.slice(0,4)>=a&&+e.d.slice(0,4)<=b);
+  const nx=list.find(e=>e.j>nj);
+  $('ec-body').innerHTML=list.map(e=>{const days=Math.round(e.j-nj);const cls=e===nx?'next':e.j<nj?'past':'';
+    return `<tr class="${cls}"><td>${fmtDate(e.d)} <span class="sub">${wday(e.d)}</span></td><td>${e.h}</td><td><b>${e.x}</b></td><td>${e.k}</td><td>${posHtml(lonOf(e))}</td><td>${e===nx?'<b>next</b> · ':''}${days>=0?days+' d':Math.abs(days)+' d ago'}</td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">No eclipses in this range.</td></tr>';
+  $('ec-meta').textContent=`${list.length} eclipses · times are greatest eclipse`;
+}
+
+// ---- retrogrades ----
+let rtPl='Mercury';
+const RTB=['Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron'];
+function renderRetro(){
+  $('rt-pick').innerHTML=RTB.map(b=>`<button class="chip" type="button" data-b="${b}" aria-pressed="${b===rtPl}">${PG[b]+V} ${b}</button>`).join('');
+  $('rt-pick').querySelectorAll('button').forEach(x=>x.onclick=()=>{rtPl=x.dataset.b;const lo=DEEP.includes(rtPl)?1500:SLOW.includes(rtPl)?1959:+META.fullFrom.slice(0,4);const hi=DEEP.includes(rtPl)?2100:SLOW.includes(rtPl)?2050:+META.fullTo.slice(0,4);const y=+istDate(new Date()).slice(0,4);$('rt-from').value=Math.max(lo,y-3);$('rt-to').value=Math.min(hi,y+3);renderRetro();});
+  const a=+$('rt-from').value,b=+$('rt-to').value,nj=nowJD();
+  const st=EV.filter(e=>e.T==='stn'&&e.p===rtPl);
+  const rows=[];
+  for(let i=0;i<st.length;i++){if(st[i].r){const d=st[i+1]&&!st[i+1].r?st[i+1]:null;rows.push([st[i],d]);}}
+  const sel=rows.filter(([r])=>+r.d.slice(0,4)>=a&&+r.d.slice(0,4)<=b);
+  $('rt-body').innerHTML=sel.map(([r,d])=>{const now=r.j<=nj&&(!d||d.j>nj);const cls=now?'next':(d&&d.j<nj?'past':'');
+    return `<tr class="${cls}"><td>${fmtDate(r.d)} ${r.h}${now?' <b>· now</b>':''}</td><td>${posHtml(lonOf(r))}</td><td>${d?fmtDate(d.d)+' '+d.h:'—'}</td><td>${d?posHtml(lonOf(d)):''}</td><td>${d?Math.round(d.j-r.j):''}</td></tr>`;}).join('')||'<tr><td colspan="5" class="empty">No retrograde periods in this range for this planet. Fast planets have data only for the detailed window.</td></tr>';
+  $('rt-meta').textContent=`${sel.length} periods · positions ${Z==='s'?'sidereal':'tropical'}`;
+}
+
+// ---- positions ----
+function renderPositions(){
+  const ds=$('pos-date').value,idx=Math.round((Date.parse(ds)-Date.parse(META.posStart))/864e5),row=D.pos[idx];
+  if(!row){$('pos-body').innerHTML=`<tr><td colspan="4" class="empty">Positions are available from ${fmtDate(META.posStart)} to ${fmtDate(META.fullTo)}.</td></tr>`;return;}
+  $('pos-body').innerHTML=BODIES.map(b=>{const t=lonFromRow(row,b,'t'),s=lonFromRow(row,b,'s');
+    return `<tr><td>${pl(b)}</td><td>${(()=>{const p=degStr(t.v);return p.txt+' '+`<span class="sg e-${ELEM[p.s%4]}">${SGL[p.s]+V} ${SIGNS[p.s]}</span>`})()}</td><td>${(()=>{const p=degStr(s.v);return p.txt+' '+`<span class="sg e-${ELEM[p.s%4]}">${SGL[p.s]+V} ${VED[p.s]}</span>`})()}</td><td>${t.r?'<span class="rx">R</span> retrograde':'direct'}</td></tr>`;}).join('');
+  $('pos-note').textContent=`${fmtDate(ds)}, 05:30 IST. Ayanamsa (Lahiri) ${(()=>{const a=row[row.length-1];const d=Math.floor(a),m=Math.floor((a-d)*60),s=Math.round(((a-d)*60-m)*60);return `${d}°${pad(m)}′${pad(s)}″`})()}. Rahu and Ketu are the mean node.`;
+}
+
+// ---- routing ----
+const SECS=['feed','planets','eclipses','retrogrades','positions','method'];
+function route(){
+  const h=(location.hash||'#feed').slice(1),cur=SECS.includes(h)?h:'feed';
+  SECS.forEach(s=>$('sec-'+s).classList.toggle('on',s===cur));
+  document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+cur?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
+}
+function renderAll(){renderBoard();renderTicker();renderFeed();renderPlanet();renderEclipses();renderRetro();renderPositions();}
+function setZ(z){Z=z;try{localStorage.setItem('skyops-z',z);}catch(e){}$('z-s').setAttribute('aria-pressed',z==='s');$('z-t').setAttribute('aria-pressed',z==='t');renderAll();}
+
+fetch('data.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(data=>{
+  D=data;EV=data.ev;META=data.meta;$('loading').remove();
+  const today=istDate(new Date());
+  $('pl-from').value=today;$('pl-to').value=addDays(today,365);
+  const y=+today.slice(0,4);$('rt-from').value=y-1;$('rt-to').value=y+3;
+  $('pos-date').value=today;$('pos-date').min=META.posStart;$('pos-date').max=META.fullTo;
+  $('z-s').onclick=()=>setZ('s');$('z-t').onclick=()=>setZ('t');
+  ['pl-from','pl-to'].forEach(id=>$(id).onchange=()=>{plLimit=400;renderPlanet();});
+  ['ec-from','ec-to'].forEach(id=>$(id).onchange=renderEclipses);
+  ['rt-from','rt-to'].forEach(id=>$(id).onchange=renderRetro);
+  $('pos-date').onchange=renderPositions;
+  $('pos-prev').onclick=()=>{$('pos-date').value=addDays($('pos-date').value,-1);renderPositions();};
+  $('pos-next').onclick=()=>{$('pos-date').value=addDays($('pos-date').value,1);renderPositions();};
+  $('pos-today').onclick=()=>{$('pos-date').value=istDate(new Date());renderPositions();};
+  renderFeedFilters();renderPlPick();setZ(Z);route();
+  window.addEventListener('hashchange',route);
+  setInterval(tick,1000);setInterval(()=>{renderTicker();renderBoard();},60000);
+}).catch(err=>{$('loading').textContent='Could not load the data file ('+err.message+'). Reload the page to try again.';});
+})();
+</script>
+</body>
+</html>

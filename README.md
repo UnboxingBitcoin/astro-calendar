@@ -1,4 +1,4 @@
-# Sky Ops — Astro Calendar
+# Krishna Mukh Astro Calendar
 
 Planetary ingresses, aspects, retrograde/direct stations, eclipses and new/full moons, in sidereal (Lahiri) and tropical zodiacs, Indian time (IST).
 

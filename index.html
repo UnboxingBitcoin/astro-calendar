@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{var m=localStorage.getItem('skyops-mode');if(m==='night'||(!m&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-mode','night');}catch(e){}</script>
 <style>
 /* Command-centre board on warm paper: ticker strip, then modular ruled panels. Single theme by choice. */
 :root{
@@ -15,7 +16,17 @@
   --fire-bg:#F3D9D3; --earth-bg:#D9E8D3; --air-bg:#F3E6B8; --water-bg:#D4E1F1;
   --display:"Barlow Condensed","Arial Narrow",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --tick-bg:#1C1915; --tick-fg:#EAE0CE; --tick-dim:#A99F8E; --tick-rule:#4a443b; --hi:#FBE3DF; --on-alert:#fff;
   color-scheme:light;
+}
+/* Night mode: deep ops-room charcoal, same element hues lifted for contrast */
+:root[data-mode="night"]{
+  --air-text:#E6C24A;
+  --paper:#14130F; --panel:#1C1A16; --ink:#E6DCC8; --muted:#9A9080; --rule:#3A352D; --alert:#E5483B;
+  --fire:#F07A68; --earth:#7FC27A; --air:#E6C24A; --water:#6FA8E8;
+  --fire-bg:#3A1F1B; --earth-bg:#1E3220; --air-bg:#3A3117; --water-bg:#18283D;
+  --tick-bg:#0B0A08; --tick-fg:#E6DCC8; --tick-dim:#8A8172; --tick-rule:#2E2A23; --hi:#3A1E1B; --on-alert:#fff;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -36,13 +47,14 @@ nav a[aria-current="page"]{border-color:var(--ink);background:var(--ink);color:v
 nav a:hover{border-color:var(--ink)}
 .zod{display:flex;border:1px solid var(--ink)}
 .zod button{border:0;background:transparent;padding:6px 10px;cursor:pointer;font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase}
-.zod button[aria-pressed="true"]{background:var(--alert);color:#fff}
+.zod button[aria-pressed="true"]{background:var(--alert);color:var(--on-alert)}
+.mode{border:1px solid var(--ink);background:transparent;padding:6px 10px;cursor:pointer;font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase}
 /* ticker */
-.ticker{border-bottom:1px solid var(--ink);background:var(--ink);color:var(--paper);overflow-x:auto;white-space:nowrap}
+.ticker{border-bottom:1px solid var(--ink);background:var(--tick-bg);color:var(--tick-fg);overflow-x:auto;white-space:nowrap}
 .ticker .wrap{display:flex;gap:0;font-size:12px}
-.tk{padding:7px 14px 7px 0;margin-right:14px;border-right:1px solid #4a443b;flex:none}
+.tk{padding:7px 14px 7px 0;margin-right:14px;border-right:1px solid var(--tick-rule);flex:none}
 .tk:last-child{border-right:0}
-.tk i{font-style:normal;color:#A99F8E;margin-right:6px;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.tk i{font-style:normal;color:var(--tick-dim);margin-right:6px;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 .live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#E5483B;margin-right:7px;animation:pulse 1.6s infinite}
 @keyframes pulse{50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.live::before{animation:none}}
@@ -61,12 +73,12 @@ main{padding:16px 0 40px}
 .cell{padding:8px 10px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);min-height:74px}
 .cell .pl{font:600 15px/1.1 var(--display);letter-spacing:.05em;text-transform:uppercase;display:flex;gap:6px;align-items:baseline}
 .cell .deg{color:var(--muted);font-size:11px;margin-top:4px}
-.rx{font:600 10px/1 var(--mono);color:#fff;background:var(--alert);padding:2px 4px;margin-left:auto}
+.rx{font:600 10px/1 var(--mono);color:var(--on-alert);background:var(--alert);padding:2px 4px;margin-left:auto}
 /* sign chip */
 .sg{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-left:3px solid;font-weight:600;white-space:nowrap}
 .e-fire{color:var(--fire);background:var(--fire-bg);border-color:var(--fire)}
 .e-earth{color:var(--earth);background:var(--earth-bg);border-color:var(--earth)}
-.e-air{color:#7A5C00;background:var(--air-bg);border-color:var(--air)}
+.e-air{color:var(--air-text,#7A5C00);background:var(--air-bg);border-color:var(--air)}
 .e-water{color:var(--water);background:var(--water-bg);border-color:var(--water)}
 .legend{display:flex;gap:8px;flex-wrap:wrap;font-size:11px}
 /* controls */
@@ -83,13 +95,13 @@ main{padding:16px 0 40px}
 .dh b{display:block;font:700 18px/1 var(--display);letter-spacing:.04em}
 .dh span{font-size:11px;color:var(--muted);text-transform:uppercase}
 .dh.today{background:var(--ink);color:var(--paper)}
-.dh.today span{color:#C9BFAE}
+.dh.today span{color:var(--paper);opacity:.75}
 .evs{display:flex;flex-direction:column}
 .ev{display:grid;grid-template-columns:58px 92px 1fr;gap:8px;padding:6px 10px;border-bottom:1px dotted var(--rule);align-items:baseline}
 .ev:last-child{border-bottom:0}
 .ev .t{color:var(--muted)}
 .tag{font:600 10px/1.6 var(--mono);text-transform:uppercase;letter-spacing:.06em;padding:0 5px;border:1px solid currentColor;justify-self:start}
-.tag.ecl{color:#fff;background:var(--alert);border-color:var(--alert)}
+.tag.ecl{color:var(--on-alert);background:var(--alert);border-color:var(--alert)}
 .tag.stn{color:var(--alert)}
 .tag.lun{color:var(--ink)}
 .tag.asp{color:var(--muted)}
@@ -103,7 +115,7 @@ th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--rule);white
 th{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:var(--paper)}
 .tw{overflow-x:auto}
 .past{opacity:.55}
-.next td{background:#FBE3DF}
+.next td{background:var(--hi)}
 .note{font-size:12px;color:var(--muted);max-width:75ch}
 .method{max-width:80ch}
 .method h3{font:700 16px/1.2 var(--display);letter-spacing:.06em;text-transform:uppercase;margin:18px 0 6px}
@@ -126,14 +138,14 @@ footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-si
   <div class="wrap hdr">
     <a class="brand" href="#feed" aria-label="Sky Ops home">
       <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r="17" fill="none" stroke="#1C1915" stroke-width="2"/>
-        <circle cx="20" cy="20" r="11" fill="none" stroke="#1C1915" stroke-width="1" stroke-dasharray="2 2"/>
-        <g stroke="#1C1915" stroke-width="1.4">
+        <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="20" cy="20" r="11" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/>
+        <g stroke="currentColor" stroke-width="1.4">
           <line x1="20" y1="1" x2="20" y2="6"/><line x1="20" y1="34" x2="20" y2="39"/><line x1="1" y1="20" x2="6" y2="20"/><line x1="34" y1="20" x2="39" y2="20"/>
         </g>
-        <g stroke="#1C1915" stroke-width="1"><line x1="20" y1="13" x2="20" y2="27"/><line x1="13" y1="20" x2="27" y2="20"/></g>
-        <circle cx="31.5" cy="11" r="3.4" fill="#B3261E"/>
-        <circle cx="20" cy="20" r="1.8" fill="#1C1915"/>
+        <g stroke="currentColor" stroke-width="1"><line x1="20" y1="13" x2="20" y2="27"/><line x1="13" y1="20" x2="27" y2="20"/></g>
+        <circle cx="31.5" cy="11" r="3.4" fill="var(--alert)"/>
+        <circle cx="20" cy="20" r="1.8" fill="currentColor"/>
       </svg>
       <span><b>Sky Ops</b><small>Astro calendar · IST</small></span>
     </a>
@@ -144,6 +156,7 @@ footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-si
       <button id="z-s" type="button" aria-pressed="true">Sidereal · Lahiri</button>
       <button id="z-t" type="button" aria-pressed="false">Tropical</button>
     </div>
+    <button class="mode" id="mode" type="button" aria-pressed="false">☾ Night</button>
   </div>
 </header>
 <div class="ticker" aria-live="off"><div class="wrap" id="ticker"><span class="tk live"><i>IST</i><span id="clock">--:--:--</span></span></div></div>
@@ -266,6 +279,9 @@ const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON=['Jan','Feb','Mar','Ap
 let Z='s'; try{const s=localStorage.getItem('skyops-z'); if(s==='t'||s==='s') Z=s;}catch(e){}
 let D,EV,META;
 const $=id=>document.getElementById(id);
+function syncMode(){const n=document.documentElement.getAttribute('data-mode')==='night';const b=$('mode');b.setAttribute('aria-pressed',n);b.textContent=n?'☀\uFE0E Day':'☾\uFE0E Night';}
+$('mode').onclick=()=>{const n=document.documentElement.getAttribute('data-mode')!=='night';if(n)document.documentElement.setAttribute('data-mode','night');else document.documentElement.removeAttribute('data-mode');try{localStorage.setItem('skyops-mode',n?'night':'day');}catch(e){}syncMode();};
+syncMode();
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // ---- time helpers (IST) ----

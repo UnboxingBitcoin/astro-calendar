@@ -194,6 +194,10 @@ th{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;col
 .ic.lun{color:var(--ink);border-color:var(--ink)}
 .t-fire{color:var(--fire)}.t-earth{color:var(--earth)}.t-air{color:var(--air-text,#7A5C00)}.t-water{color:var(--water)}
 .sn{font-weight:600;white-space:nowrap}
+.ag{display:inline-block;min-width:1.3em;text-align:center;font:600 17px/1 var(--sans);vertical-align:-1px}
+.ag0{color:#B07A00}.ag180{color:var(--alert)}.ag90{color:var(--alert)}.ag120{color:var(--earth)}.ag60{color:var(--water)}
+:root[data-mode="night"] .ag0{color:var(--air)}
+.an{color:var(--muted);font-size:12px;font-weight:400}
 .nowline{display:flex;align-items:center;gap:8px;padding:6px 0;font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--alert)}
 .nowline::after{content:"";flex:1;height:1px;background:var(--alert)}
 @media (max-width:640px){
@@ -799,7 +803,7 @@ function isKey(e){return e.T==='ecl'||e.T==='lun'||e.T==='stn'||(e.T==='ing'&&e.
 function sentence(e){
   if(e.T==='ing'){const ns=e.p==='Rahu'?` <span class="sub">(Ketu → ${sname((e.s+6)%12)})</span>`:'';return `${e.p} ${e.r&&e.p!=='Rahu'&&e.p!=='Ketu'?'re-enters':'enters'} ${sn(e.s)}${ns}`;}
   if(e.T==='stn'){const p=degStr(lonOf(e));return `${e.p} turns <b>${e.r?'retrograde':'direct'}</b> in ${sn(p.s)}`;}
-  if(e.T==='asp') return `${e.p} ${VERB[e.a]} ${e.q}`;
+  if(e.T==='asp') return `${e.p} <span class="ag ag${e.a}" title="${ASP[e.a][1]}">${ASP[e.a][0]+V}</span> ${e.q} <span class="an">${ASP[e.a][1]}</span>`;
   if(e.T==='ecl'){const p=degStr(lonOf(e));return `${e.k} ${e.x.toLowerCase()} eclipse in ${sn(p.s)}`;}
   if(e.T==='lun'){const p=degStr(lonOf(e));return `${e.x} Moon in ${sn(p.s)}`;}
 }
@@ -808,7 +812,7 @@ function icon(e){
   if(e.T==='stn') return `<span class="ic stn">${e.r?'℞':'D'}</span>`;
   if(e.T==='ecl') return '<span class="ic ecl">◐</span>';
   if(e.T==='lun') return `<span class="ic lun">${e.x==='New'?'●':'○'}</span>`;
-  return `<span class="ic">${ASP[e.a][0]+V}</span>`;
+  return `<span class="ic">${PG[e.p]+V}</span>`;
 }
 function detail(e){
   const when=`${wday(e.d)} ${fmtDate(e.d)}, ${t12(e.h)} IST`;
@@ -863,8 +867,8 @@ function renderPlPick(){
   $('pl-types').innerHTML='<label>Show</label>'+tps.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${plTypes.has(k)}">${l}</button>`).join('');
   $('pl-types').querySelectorAll('button').forEach(x=>x.onclick=()=>{const k=x.dataset.k;plTypes.has(k)?plTypes.delete(k):plTypes.add(k);renderPlPick();renderPlanet();});
   const today=istDate(new Date()),y=+today.slice(0,4);
-  const m3=(()=>{const t=new Date(today+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+3);return t.toISOString().slice(0,10);})();
-  const pre=[['Next 3 months',today,m3],[`Year ${y}`,`${y}-01-01`,`${y}-12-31`],['To 2040',today,META.fullTo]];
+  const m3=(()=>{const t=new Date(today+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+12);return t.toISOString().slice(0,10);})();
+  const pre=[['Next 12 months',today,m3],[`Year ${y}`,`${y}-01-01`,`${y}-12-31`],['To 2040',today,META.fullTo]];
   if(curPl!=='Moon') pre.push(['1959–2050','1959-01-01','2050-12-31']);
   if(DEEP.includes(curPl)) pre.push(['1500–2100','1500-01-01','2100-12-31']);
   $('pl-presets').innerHTML=pre.map((p,i)=>`<button class="chip" type="button" data-i="${i}">${p[0]}</button>`).join('');
@@ -997,7 +1001,7 @@ function setZ(z){Z=z;try{localStorage.setItem('skyops-z',z);}catch(e){}$('z-s').
 Promise.resolve().then(()=>JSON.parse(document.getElementById('d-data').textContent)).then(data=>{
   D=data;EV=data.ev;META=data.meta;$('loading').remove();
   const today=istDate(new Date());
-  {const t=new Date(today+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+3);$('pl-from').value=today;$('pl-to').value=t.toISOString().slice(0,10);}
+  {const t=new Date(today+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+12);$('pl-from').value=today;$('pl-to').value=t.toISOString().slice(0,10);}
   const y=+today.slice(0,4);$('rt-from').value=y-1;$('rt-to').value=y+3;
   $('pos-date').value=today;$('pos-date').min=META.posStart;$('pos-date').max=META.fullTo;
   $('z-s').onclick=()=>setZ('s');$('z-t').onclick=()=>setZ('t');

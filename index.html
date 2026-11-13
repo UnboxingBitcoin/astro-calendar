@@ -860,15 +860,19 @@ function renderFeed(){
 // ---- planets ----
 let curPl='Saturn', plTypes=new Set(['ing','stn','asp','ecl']), plLimit=400;
 function renderPlPick(){
-  $('pl-pick').innerHTML=BODIES.map(b=>`<button class="chip" type="button" data-b="${b}" aria-pressed="${b===curPl}">${PG[b]+V} ${b}</button>`).join('');
-  $('pl-pick').querySelectorAll('button').forEach(x=>x.onclick=()=>{curPl=x.dataset.b;plLimit=400;clampRange();renderPlPick();renderPlanet();});
+  $('pl-pick').innerHTML=`<button class="chip" type="button" data-b="All" aria-pressed="${curPl==='All'}">✦ All</button>`+BODIES.map(b=>`<button class="chip" type="button" data-b="${b}" aria-pressed="${b===curPl}">${PG[b]+V} ${b}</button>`).join('');
+  $('pl-pick').querySelectorAll('button').forEach(x=>x.onclick=()=>{const was=curPl;curPl=x.dataset.b;plLimit=400;
+    if(was==='All'&&curPl!=='All'){const td=istDate(new Date()),t=new Date(td+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+12);$('pl-from').value=td;$('pl-to').value=t.toISOString().slice(0,10);}
+    if(curPl==='All'){const td=istDate(new Date()),t=new Date(td+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+4);$('pl-from').value=td;$('pl-to').value=t.toISOString().slice(0,10);}
+    else clampRange();renderPlPick();renderPlanet();});
   const tps=[['ing','Ingresses'],['stn','Stations'],['asp','Aspects']];
-  if(curPl==='Sun'||curPl==='Moon') tps.push(['ecl','Eclipses & lunations']);
+  if(curPl==='Sun'||curPl==='Moon'||curPl==='All') tps.push(['ecl','Eclipses & lunations']);
   $('pl-types').innerHTML='<label>Show</label>'+tps.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${plTypes.has(k)}">${l}</button>`).join('');
   $('pl-types').querySelectorAll('button').forEach(x=>x.onclick=()=>{const k=x.dataset.k;plTypes.has(k)?plTypes.delete(k):plTypes.add(k);renderPlPick();renderPlanet();});
   const today=istDate(new Date()),y=+today.slice(0,4);
   const m3=(()=>{const t=new Date(today+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+12);return t.toISOString().slice(0,10);})();
-  const pre=[['Next 12 months',today,m3],[`Year ${y}`,`${y}-01-01`,`${y}-12-31`],['To 2040',today,META.fullTo]];
+  const m4=(()=>{const t=new Date(today+'T00:00:00Z');t.setUTCMonth(t.getUTCMonth()+4);return t.toISOString().slice(0,10);})();
+  const pre=curPl==='All'?[['Next 4 months',today,m4]]:[];pre.push(['Next 12 months',today,m3],[`Year ${y}`,`${y}-01-01`,`${y}-12-31`],['To 2040',today,META.fullTo]);
   if(curPl!=='Moon') pre.push(['1959–2050','1959-01-01','2050-12-31']);
   if(DEEP.includes(curPl)) pre.push(['1500–2100','1500-01-01','2100-12-31']);
   $('pl-presets').innerHTML=pre.map((p,i)=>`<button class="chip" type="button" data-i="${i}">${p[0]}</button>`).join('');
@@ -880,6 +884,7 @@ function clampRange(){
   if($('pl-from').value<lo)$('pl-from').value=lo; if($('pl-to').value>hi)$('pl-to').value=hi;
 }
 function coverageNote(){
+  if(curPl==='All') return `Every planet together. Full detail from ${fmtDate(META.fullFrom)} to ${fmtDate(META.fullTo)}; outside that, eclipses, slow planets, and conjunctions and oppositions.`;
   const cj='conjunctions and oppositions with every planet, Rahu and Ketu from 1959 to 2050';
   if(curPl==='Moon') return `Moon: sign changes, new and full moons and eclipses from ${fmtDate(META.fullFrom)} to ${fmtDate(META.fullTo)}.`;
   if(DEEP.includes(curPl)) return `${curPl}: sign changes, stations and all five aspects with Saturn–Pluto from 1500 to 2100; ${cj}; all five aspects with every planet from ${fmtDate(META.fullFrom)} to ${fmtDate(META.fullTo)}.`;
@@ -903,9 +908,9 @@ function logHtml(list){
 function renderPlanet(){
   const f=$('pl-from').value,t=$('pl-to').value;
   if(withPacks(f,t,$('pl-list'),renderPlanet))return;
-  const lum=(curPl==='Sun'||curPl==='Moon')&&plTypes.has('ecl');
+  const all=curPl==='All',lum=(curPl==='Sun'||curPl==='Moon'||all)&&plTypes.has('ecl');
   const list=EV.filter(e=>e.d>=f&&e.d<=t&&visible(e)&&(
-    ((e.p===curPl||e.q===curPl)&&plTypes.has(e.T))||(lum&&(e.T==='ecl'||e.T==='lun'))));
+    ((all||e.p===curPl||e.q===curPl)&&plTypes.has(e.T))||(lum&&(e.T==='ecl'||e.T==='lun'))));
   const shown=list.slice(0,plLimit);
   $('pl-list').innerHTML=logHtml(shown)+(list.length>plLimit?`<button class="chip more" type="button" id="pl-more">Show ${Math.min(400,list.length-plLimit)} more (${list.length-plLimit} left)</button>`:'');
   if($('pl-more'))$('pl-more').onclick=()=>{plLimit+=400;renderPlanet();};

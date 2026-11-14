@@ -187,7 +187,14 @@ html[data-style=retro][data-theme=mono] .th-bar,html[data-style=retro][data-them
   nav{flex-wrap:nowrap;overflow-x:auto;width:100%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   nav::-webkit-scrollbar{display:none}
   nav a{flex:none}
-  #sec-eclipses thead,#sec-retrogrades thead,#sec-orbits thead{display:none}
+  #sec-eclipses thead,#sec-retrogrades thead,#sec-orbits thead,#sec-rare thead{display:none}
+  #sec-rare .tw{overflow:visible}
+  #sec-rare table,#sec-rare tbody{display:block}
+  #sec-rare tr{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:9px 14px;border-bottom:1px solid var(--rule)}
+  #sec-rare td{border:0;padding:0;white-space:normal;background:transparent!important;box-shadow:none!important}
+  #sec-rare td:nth-child(even){text-align:right}
+  .rrd{font:600 12px/1 var(--mono);color:var(--muted);white-space:nowrap}
+  #sec-rare tr.next{background:var(--hi);box-shadow:inset 3px 0 0 var(--alert)}
   #sec-eclipses .tw,#sec-retrogrades .tw{overflow:visible}
   #sec-eclipses table,#sec-eclipses tbody,#sec-retrogrades table,#sec-retrogrades tbody{display:block}
   #sec-eclipses tr,#sec-retrogrades tr{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:9px 14px;border-bottom:1px solid var(--rule)}
@@ -363,7 +370,7 @@ html[data-style=retro] .swipe-hint{font-family:var(--mono)}
 @media (max-width:640px){
   html[data-style=retro] .card{border:2px solid var(--r-line);margin:0 14px 10px;border-radius:14px}
   html[data-style=retro] .cards,html[data-style=retro] .cards.big{gap:0}
-  html[data-style=retro] #sec-orbits tr.next,html[data-style=retro] #sec-eclipses tr.next,html[data-style=retro] #sec-retrogrades tr.next{background:var(--r-pop);color:var(--r-onpop);box-shadow:none}
+  html[data-style=retro] #sec-rare tr.next,html[data-style=retro] #sec-orbits tr.next,html[data-style=retro] #sec-eclipses tr.next,html[data-style=retro] #sec-retrogrades tr.next{background:var(--r-pop);color:var(--r-onpop);box-shadow:none}
 }
 footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-size:11px}
 .loading{padding:40px;text-align:center;color:var(--muted)}
@@ -605,7 +612,7 @@ footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-si
       <span><b>Krishna Mukh</b><small>Astro calendar · IST</small></span>
     </a>
     <nav aria-label="Sections">
-      <a href="#feed">90 Days</a><a href="#planets">Planets</a><a href="#eclipses">Eclipses</a><a href="#retrogrades">Retrogrades</a><a href="#positions">Positions</a><a href="#orbits">Perihelion</a><a href="#method">Method</a>
+      <a href="#feed">90 Days</a><a href="#rare">Rare</a><a href="#planets">Planets</a><a href="#eclipses">Eclipses</a><a href="#retrogrades">Retrogrades</a><a href="#positions">Positions</a><a href="#orbits">Perihelion</a><a href="#method">Method</a>
     </nav>
     <div class="tools" style="display:flex;gap:8px;align-items:center"><div class="zod" role="group" aria-label="Zodiac">
       <button id="z-s" type="button" aria-pressed="true">Sidereal · Lahiri</button>
@@ -643,6 +650,21 @@ footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-si
       <div class="ph"><h2>Next 90 days</h2><span class="meta" id="feed-meta"></span></div>
       <div class="ctrl" id="feed-filters"></div>
       <div id="feed"></div>
+    </div>
+  </section>
+
+  <!-- RARE -->
+  <section id="sec-rare" class="sec">
+    <div class="panel">
+      <div class="ph"><h2>Rare events</h2><span class="meta" id="rr-meta"></span></div>
+      <div class="ctrl" id="rr-kind" role="group" aria-label="Kind"></div>
+      <div class="ctrl" id="rr-pl" role="group" aria-label="Planet"></div>
+      <div class="ctrl">
+        <label for="rr-from">From year</label><select id="rr-from"></select>
+        <label for="rr-to">To year</label><select id="rr-to"></select>
+        <span id="rr-presets" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+      </div>
+      <div class="tw"><table><thead><tr><th>Date</th><th>Time IST</th><th>Event</th><th>Position</th></tr></thead><tbody id="rr-body"></tbody></table></div>
     </div>
   </section>
 
@@ -1181,6 +1203,67 @@ function renderEclipses(){
   $('ec-meta').textContent=`${a}–${b} · ${list.length} eclipses (${list.filter(e=>e.x==='Lunar'&&e.k==='Total').length} total lunar, shaded blue) · times are greatest eclipse`;
 }
 
+// ---- rare events (loaded only when this tab is opened) ----
+let RARE=null,rrKind='all',rrPl='all',rrLoading=false;
+function loadRare(){
+  if(RARE||rrLoading)return;rrLoading=true;
+  const el=document.getElementById('d-rare');
+  (el?Promise.resolve(JSON.parse(el.textContent)):fetch('rare.json').then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}))
+  .then(a=>{RARE=a.ev;rrLoading=false;renderRare();})
+  .catch(e=>{rrLoading=false;$('rr-body').innerHTML=`<tr><td colspan="4" class="empty">Could not load rare events (${esc(e.message)}). Try again.</td></tr>`;});
+}
+const RRP=['Venus','Earth','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron','Rahu'];
+function rrDays(e){const t=istDate(new Date());return Math.round((Date.UTC(+e.d.slice(0,4),+e.d.slice(5,7)-1,+e.d.slice(8,10))-Date.UTC(+t.slice(0,4),+t.slice(5,7)-1,+t.slice(8,10)))/864e5);}
+function rrBr(e){const n=rrDays(e),a=Math.abs(n);
+  if(n===0)return '(today)';if(n===1)return '(tomorrow)';if(n===-1)return '(yesterday)';
+  const yr=a>=730?` · ${(a/365.25).toFixed(1)} yr`:'';
+  return n>0?`(in ${a.toLocaleString('en-IN')} days${yr})`:`(${a.toLocaleString('en-IN')} days ago${yr})`;}
+const PGX=Object.assign({Earth:'⊕'},PG);
+function rrSentence(e){
+  let h='';
+  if(e.T==='ecl')h=`<b>${e.x} eclipse</b> · ${e.k}`;
+  else if(e.T==='stn')h=`<b>${PG[e.p]+V} ${e.p}</b> turns <b>${e.r?'retrograde ℞':'direct'}</b>`;
+  else if(e.T==='trn')h=`<b>${PG[e.p]+V} ${e.p} transit</b> across the Sun`;
+  else if(e.T==='eqx')h=`<b>${e.k}</b> <span class="sub">${{'March equinox':'Sun at 0° Aries (tropical)','June solstice':'longest day in the north','September equinox':'Sun at 0° Libra (tropical)','December solstice':'shortest day in the north'}[e.k]}</span>`;
+  else if(e.T==='orb')h=`<b>${PGX[e.p]+V} ${e.p} ${e.k.toLowerCase()}</b>`;
+  else if(e.T==='ven')h=`<b>${PG.Venus+V} Venus · ${e.k}</b>${e.e?` <span class="sub">${e.e}° from the Sun</span>`:''}${e.m?` <span class="sub">magnitude ${e.m}</span>`:''}`;
+  else if(e.T==='ing'){const ns=e.p==='Rahu'?` <span class="sub">(Ketu → ${sname((e.s+6)%12)})</span>`:'';h=`<b>${PG[e.p]+V} ${e.p}</b> ${e.r&&e.p!=='Rahu'?'re-enters':'enters'} ${sn(e.s)}${ns}`;}
+  else if(e.T==='asp'){const nd=e.q==='Rahu';
+    const lead=nd?`<b>${PG[e.p]+V} ${e.p}</b> <span class="ag ag${e.a}">${ASP[e.a][0]+V}</span> ${PG.Rahu+V} Rahu <span class="sub">(${PG.Ketu+V} Ketu ${ASP[e.a===0?180:0][0]+V} ${e.p})</span>`
+      :`<b>${PG[e.p]+V} ${e.p}</b> <span class="ag ag${e.a}">${ASP[e.a][0]+V}</span> <b>${PG[e.q]+V} ${e.q}</b>`;
+    const rt=(e.r?`${e.p} ℞`:'')+(e.r2&&!nd?`${e.r?' · ':''}${e.q} ℞`:'');
+    h=`${lead} <span class="an">${ASP[e.a][1]}</span>${rt?` <span class="sub">${rt}</span>`:''}`;}
+  return `${h} <span class="rrd">${rrBr(e)}</span>`;
+}
+function rrLon(e){return e.T==='ing'||e.T==='orb'?null:lonOf(e);}
+function renderRare(){
+  if(!RARE){loadRare();$('rr-body').innerHTML='<tr><td colspan="4" class="empty">Loading rare events…</td></tr>';return;}
+  const nj=nowJD(),cy=+istDate(new Date()).slice(0,4);
+  const kinds=[['all','All'],['ecl','Eclipses'],['asp','Conjunctions & oppositions'],['ing','Sign changes'],['stn','Retrograde & direct'],['orb','Perihelion & aphelion'],['eqx','Equinox & solstice'],['ven','Venus cycle'],['trn','Transits']];
+  $('rr-kind').innerHTML='<label>Show</label>'+kinds.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${rrKind===k}">${l}</button>`).join('');
+  $('rr-kind').querySelectorAll('button').forEach(x=>x.onclick=()=>{rrKind=x.dataset.k;renderRare();});
+  const pls=['all',...RRP];
+  $('rr-pl').innerHTML='<label>Planet</label>'+pls.map(b=>`<button class="chip" type="button" data-b="${b}" aria-pressed="${rrPl===b}">${b==='all'?'Any':b==='Rahu'?PG.Rahu+V+' Rahu/Ketu':PGX[b]+V+' '+b}</button>`).join('');
+  $('rr-pl').querySelectorAll('button').forEach(x=>x.onclick=()=>{rrPl=x.dataset.b;renderRare();});
+  const fs=$('rr-from'),ts=$('rr-to');
+  if(!fs.options.length){let o='';for(let y=1959;y<=2100;y++)o+=`<option value="${y}">${y}</option>`;fs.innerHTML=ts.innerHTML=o;fs.value=cy;ts.value=cy+10;
+    $('rr-presets').innerHTML=[['Next 10 yrs',cy,cy+10],['Past 10 yrs',cy-10,cy],['2000–2050',2000,2050],['All 1959–2100',1959,2100]].map(([l,a,b])=>`<button class="chip" type="button" data-a="${a}" data-b="${b}">${l}</button>`).join('');
+    $('rr-presets').querySelectorAll('button').forEach(x=>x.onclick=()=>{fs.value=x.dataset.a;ts.value=x.dataset.b;renderRare();});
+    fs.onchange=ts.onchange=renderRare;}
+  let a=+fs.value,b=+ts.value;if(a>b)[a,b]=[b,a];
+  const inv=e=>(e.T==='ven'?'Venus':e.p)===rrPl||e.q===rrPl;
+  const list=RARE.filter(e=>{const y=+e.d.slice(0,4);if(y<a||y>b)return false;
+    if(e.T==='ing'&&e.z!==Z)return false;
+    if(rrKind!=='all'&&e.T!==rrKind)return false;
+    if(rrPl!=='all'&&!(['asp','ing','orb','ven','stn'].includes(e.T)&&inv(e)))return false;
+    return true;});
+  const nx=list.find(e=>e.j>nj);
+  $('rr-body').innerHTML=list.map(e=>{const days=Math.round(e.j-nj),lon=rrLon(e);
+    const pos=e.T==='ing'?`${sn(e.s)}`:e.T==='orb'?`<span class="sub">${e.r.toFixed(e.r<2?3:2)} AU</span>`:posHtml(lon);
+    return `<tr class="${e===nx?'next':e.j<nj?'past':''}"><td>${fmtDate(e.d)} <span class="sub">${wday(e.d)}</span></td><td>${e.h?t12(e.h):'date only'}</td><td>${e===nx?'<b>next</b> · ':''}${rrSentence(e)}</td><td>${pos}</td></tr>`;}).join('')||'<tr><td colspan="4" class="empty">No events match.</td></tr>';
+  $('rr-meta').textContent=`${a}–${b} · ${list.length} events · ${Z==='s'?'sidereal (Lahiri)':'tropical'} · IST`;
+}
+
 // ---- retrogrades ----
 let rtPl='Mercury', rtMode='year', rtYear='next';
 const RTB=['Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron'];
@@ -1267,7 +1350,7 @@ function renderOrbits(){
 }
 
 // ---- routing ----
-const SECS=['feed','planets','eclipses','retrogrades','positions','orbits','method'];
+const SECS=['feed','rare','planets','eclipses','retrogrades','positions','orbits','method'];
 let curSec=null,swipeDir=0;
 function route(){
   const h=(location.hash||'#feed').slice(1),cur=SECS.includes(h)?h:'feed';
@@ -1278,6 +1361,7 @@ function route(){
     const n=a.parentElement;n.scrollTo({left:a.offsetLeft-(n.clientWidth-a.offsetWidth)/2,behavior:curSec?'smooth':'auto'});}else a.removeAttribute('aria-current');});
   {const top=document.querySelector('main').offsetTop-4;if(curSec&&cur!==curSec&&window.scrollY>top)window.scrollTo(0,top);}
   curSec=cur;
+  if(cur==='rare')renderRare();
 }
 // swipe left / right: the page follows your finger, then slides to the next tab
 let swipeAnim=false;
@@ -1327,7 +1411,7 @@ let swipeAnim=false;
   main.addEventListener('touchcancel',()=>{if(drag&&el){set('translateX(0)','1','transform .25s ease-out,opacity .25s');const c=el;setTimeout(()=>clear(c),260);}tracking=false;drag=false;},{passive:true});
 })();
 let feedReady=false;
-function renderAll(){renderBoard();renderTicker();if(feedReady)renderFeed();renderPlanet();renderEclipses();renderRetro();renderPositions();renderOrbits();}
+function renderAll(){renderBoard();renderTicker();if(feedReady)renderFeed();renderPlanet();renderEclipses();if(RARE)renderRare();renderRetro();renderPositions();renderOrbits();}
 function setZ(z){Z=z;try{localStorage.setItem('skyops-z',z);}catch(e){}$('z-s').setAttribute('aria-pressed',z==='s');$('z-t').setAttribute('aria-pressed',z==='t');renderAll();}
 
 Promise.resolve().then(()=>JSON.parse(document.getElementById('d-data').textContent)).then(data=>{

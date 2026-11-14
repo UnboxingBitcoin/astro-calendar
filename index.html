@@ -1209,15 +1209,20 @@ function loadRare(){
   if(RARE||rrLoading)return;rrLoading=true;
   const el=document.getElementById('d-rare');
   (el?Promise.resolve(JSON.parse(el.textContent)):fetch('rare.json').then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}))
-  .then(a=>{RARE=a.ev;rrLoading=false;renderRare();})
+  .then(a=>{RARE=a.ev;rrGaps();rrLoading=false;renderRare();})
   .catch(e=>{rrLoading=false;$('rr-body').innerHTML=`<tr><td colspan="4" class="empty">Could not load rare events (${esc(e.message)}). Try again.</td></tr>`;});
 }
 const RRP=['Venus','Earth','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron','Rahu'];
-function rrDays(e){const t=istDate(new Date());return Math.round((Date.UTC(+e.d.slice(0,4),+e.d.slice(5,7)-1,+e.d.slice(8,10))-Date.UTC(+t.slice(0,4),+t.slice(5,7)-1,+t.slice(8,10)))/864e5);}
-function rrBr(e){const n=rrDays(e),a=Math.abs(n);
-  if(n===0)return '(today)';if(n===1)return '(tomorrow)';if(n===-1)return '(yesterday)';
-  const yr=a>=730?` · ${(a/365.25).toFixed(1)} yr`:'';
-  return n>0?`(in ${a.toLocaleString('en-IN')} days${yr})`:`(${a.toLocaleString('en-IN')} days ago${yr})`;}
+function rrKey(e){
+  if(e.T==='ecl')return 'ecl'+e.x;if(e.T==='ing')return 'ing'+e.p+e.z;if(e.T==='asp')return 'asp'+e.p+e.q+e.a;
+  if(e.T==='stn')return 'stn'+e.p+e.r;if(e.T==='orb')return 'orb'+e.p+e.k;if(e.T==='eqx')return 'eqx'+e.k;
+  if(e.T==='trn')return 'trn'+e.p;if(e.T==='ven')return 'ven'+e.k.replace(/ \(.*|\s(east|west).*/,'');return e.T;}
+function rrGaps(){const last={},any={};RARE.forEach(e=>{
+  if(e.T==='ing'){const ak='a'+e.p+e.z,fwd=!e.r||e.p==='Rahu',fk='f'+e.p+e.z;
+    const ref=fwd?last[fk]:any[ak];e.gap=ref!==undefined?Math.round(e.j-ref):null;any[ak]=e.j;if(fwd)last[fk]=e.j;return;}
+  const k=rrKey(e);e.gap=last[k]!==undefined?Math.round(e.j-last[k]):null;last[k]=e.j;});}
+function rrBr(e){if(e.gap==null)return '';const n=e.gap,yr=n>=730?` · ${(n/365.25).toFixed(1)} yr`:'';
+  return `(${n.toLocaleString('en-IN')} days${yr} after the previous)`;}
 const PGX=Object.assign({Earth:'⊕'},PG);
 function rrSentence(e){
   let h='';

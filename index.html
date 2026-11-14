@@ -158,6 +158,11 @@ th{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;col
 .card .nx{font-size:12px;color:var(--muted)}
 .card .nx b{color:var(--ink);font-weight:600}
 .board-pad{height:14px}
+.ca{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px}
+.cai{white-space:nowrap}
+.cai small{color:var(--muted);font:500 11px var(--mono)}
+.ca .ag{font-size:15px}
+@media (max-width:640px){.card .ca{grid-column:1 / -1}}
 .pz{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
 .pz .dg{margin-left:auto;white-space:nowrap}
 #sec-positions .cards{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
@@ -476,7 +481,7 @@ footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-si
       <div id="board"></div>
       <div class="pb legend">
         <span class="sg e-fire">Fire</span><span class="sg e-earth">Earth</span><span class="sg e-air">Air</span><span class="sg e-water">Water</span>
-        <span class="note">Bar shows how far through the sign. Sun, Moon, Mercury, Venus and Mars update every 5 minutes and switch sign at the exact second. Slower planets show the 5:30 AM IST reading.</span>
+        <span class="note">Bar shows how far through the sign. Sun, Moon, Mercury, Venus and Mars update every 5 minutes and switch sign at the exact second. Slower planets show the 5:30 AM IST reading. Aspects shown: ☌ ☍ □ within 1° right now (↗ applying, ↘ separating).</span>
       </div>
     </div>
     <div class="panel">
@@ -714,7 +719,7 @@ function card(b,st,pt){
     return `<div class="card nodes"><div class="top">${PG.Rahu+V} Rahu · ${PG.Ketu+V} Ketu</div>
       <div class="sgw">${r!==null?sign(r):''}${k!==null?sign(k):''}<span class="dg">${dg}<small>5:30 AM</small></span></div>
       <div class="bar"><i class="b-${ELEM[(r??0)%4]}" style="width:${(fr*100).toFixed(1)}%"></i></div>
-      <div class="nx">${n?`Next: <b>${sname(n.s)} / ${sname((n.s+6)%12)}</b> · ${when(n,1)}`:''}</div></div>`;
+      ${aspHtml('Rahu')}${aspHtml('Ketu')}<div class="nx">${n?`Next: <b>${sname(n.s)} / ${sname((n.s+6)%12)}</b> · ${when(n,1)}`:''}</div></div>`;
   }
   const s=st[b];let sg=s.s,deg='',at='5:30 AM',live='',lon=null;const ms=Date.now();
   if(pt){const L=lonFromRow(pt.row,b,Z);lon=L.v;}
@@ -731,7 +736,7 @@ function card(b,st,pt){
   return `<div class="card"><div class="top">${PG[b]+V} ${b}${s.r?'<span class="rxs" title="Retrograde">℞</span>':''}${live}</div>
     <div class="sgw">${sg!==null?sign(sg):'—'}<span class="dg">${deg}<small>${at}</small></span></div>
     <div class="bar"><i class="b-${ELEM[(sg??0)%4]}" style="width:${(fr*100).toFixed(1)}%"></i></div>
-    <div class="nx">${nx}</div></div>`;
+    ${aspHtml(b)}<div class="nx">${nx}</div></div>`;
 }
 let boardTimer=null;
 function scheduleBoard(){
@@ -740,7 +745,28 @@ function scheduleBoard(){
   if(nx){const ms=(nx.j-2440587.5)*864e5+300;if(ms>now&&ms<at)at=ms;}
   boardTimer=setTimeout(()=>{renderBoard();renderTicker();scheduleBoard();},Math.max(250,at-now));
 }
+let CUR={};
+const ASPB=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Chiron','Rahu','Ketu'];
+function computeAspects(){
+  const now=Date.now(),L={},L1={};
+  for(const b of ASPB){L[b]=liveLon(b,now,'t');L1[b]=liveLon(b,now+3600e3,'t');}
+  const out={};ASPB.forEach(b=>out[b]=[]);
+  for(let i=0;i<ASPB.length;i++)for(let k=i+1;k<ASPB.length;k++){
+    const p=ASPB[i],q=ASPB[k];if(p==='Rahu'&&q==='Ketu')continue;if(L[p]===null||L[q]===null)continue;
+    const node=q==='Rahu'||q==='Ketu';
+    const sep=x=>{const d=Math.abs(wrapd(x));return d;};
+    const d=sep(L[p]-L[q]),d1=L1[p]!==null&&L1[q]!==null?sep(L1[p]-L1[q]):d;
+    for(const a of node?[0]:[0,90,180]){const orb=Math.abs(d-a);if(orb<=1){const ap=Math.abs(d1-a)<orb;
+      out[p].push({o:q,a,orb,ap});out[q].push({o:p,a,orb,ap});}}
+  }
+  for(const b in out)out[b].sort((x,y)=>x.orb-y.orb);
+  CUR=out;
+}
+function aspHtml(b){const l=CUR[b]||[];if(!l.length)return '';
+  return `<div class="ca">${l.map(x=>{const dm=Math.floor(x.orb),mm=Math.round((x.orb-dm)*60);
+    return `<span class="cai" title="${ASP[x.a][1]}, ${x.ap?'applying':'separating'}"><span class="ag ag${x.a}">${ASP[x.a][0]+V}</span> ${PG[x.o]+V} ${x.o} <small>${dm}°${pad(mm===60?59:mm)}′ ${x.ap?'↗':'↘'}</small></span>`;}).join('')}</div>`;}
 function renderBoard(){
+  computeAspects();
   const st=currentState(),pt=posToday();
   $('board').innerHTML=GROUPS.map(([t,list,cls])=>`<div class="grp"><h3>${t}</h3><div class="cards ${cls}">${list.map(b=>card(b,st,pt)).join('')}</div></div>`).join('')+'<div class="board-pad"></div>';
   $('now-meta').textContent=(Z==='s'?'Sidereal · Lahiri':'Tropical')+' · '+fmtDate(istDate(new Date()));
@@ -830,10 +856,10 @@ function renderUpNext(){
   $('upnext').innerHTML=out.map(e=>{const days=Math.round((Date.parse(e.d)-Date.parse(istDate(new Date())))/864e5);
     return `<div class="uc${e.T==='ecl'||e.T==='stn'?' hot':''}"><span class="when">${wday(e.d)} ${fmtDate(e.d).replace(/ \d{4}$/,'')} · ${t12(e.h)}</span><span class="what">${icon(e)} ${sentence(e)}</span><span class="cd">${days<=0?'Today':days===1?'Tomorrow':'In '+days+' days'}</span></div>`;}).join('');
 }
-let feedMinor=new Set();
+let feedMinor=new Set(['asp','moon']);
 function renderFeedFilters(){
   const opts=[['asp','Aspects'],['moon','Moon sign changes']];
-  $('feed-filters').innerHTML='<label>Also show</label>'+opts.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${feedMinor.has(k)}">${feedMinor.has(k)?'✓ ':'+ '}${l}</button>`).join('')+'<span class="note" style="margin-left:auto">Tap an event for exact time and degrees</span>';
+  $('feed-filters').innerHTML='<label>Showing</label>'+opts.map(([k,l])=>`<button class="chip" type="button" data-k="${k}" aria-pressed="${feedMinor.has(k)}">${feedMinor.has(k)?'✓ ':'+ '}${l}</button>`).join('')+'<span class="note" style="margin-left:auto">Tap an event for exact time and degrees</span>';
   $('feed-filters').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;feedMinor.has(k)?feedMinor.delete(k):feedMinor.add(k);renderFeedFilters();renderFeed();});
 }
 function weekStart(d){const t=new Date(d+'T00:00:00Z');const w=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-w);return t.toISOString().slice(0,10);}

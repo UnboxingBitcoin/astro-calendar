@@ -161,6 +161,22 @@ th{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;col
 .card .nx{font-size:12px;color:var(--muted)}
 .card .nx b{color:var(--ink);font-weight:600}
 .board-pad{height:14px}
+.tithi{margin:14px 14px 0;padding:12px 14px;border:1px solid var(--rule);background:var(--paper);display:grid;gap:7px}
+.th-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.th-m{font:700 18px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.th-m small,.th-n small{font:500 11px var(--mono);letter-spacing:.04em;text-transform:none;color:var(--muted)}
+.th-n{font-size:14px}
+.th-bar{position:relative;height:14px;border-radius:7px;border:1px solid var(--ink);
+  background:linear-gradient(90deg,#1b1d3a 0%,#4a4f8a 22%,#f2e7b5 47%,#fff6cf 50%,#f2e7b5 53%,#4a4f8a 78%,#1b1d3a 100%)}
+.th-bar i{position:absolute;top:2px;bottom:2px;width:1px;background:rgba(255,255,255,.35)}
+.th-bar i:nth-child(15){background:rgba(0,0,0,.35)}
+.th-dot{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--alert);border:2px solid var(--panel);box-shadow:0 0 0 1px var(--ink)}
+.th-lab{display:flex;justify-content:space-between;font:500 10px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.th-sub{font-size:12px;color:var(--muted)}
+html[data-style=retro] .tithi{border:2px solid var(--r-line);border-radius:14px;box-shadow:var(--shadow-sm);background:var(--r-card)}
+html[data-style=retro] .th-bar{border:2px solid var(--r-line);height:16px;border-radius:8px}
+html[data-style=retro] .th-dot{background:var(--r-pop);border-color:var(--r-line);box-shadow:var(--shadow-sm)}
+html[data-style=retro][data-theme=mono] .th-bar,html[data-style=retro][data-theme=noir] .th-bar{background:linear-gradient(90deg,#000 0%,#777 25%,#fff 50%,#777 75%,#000 100%)}
 @keyframes inR{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes inL{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 .sec.in-r{animation:inR .22s ease-out}.sec.in-l{animation:inL .22s ease-out}
@@ -936,10 +952,39 @@ function computeAspects(){
 function aspHtml(b){const l=CUR[b]||[];if(!l.length)return '';
   return `<div class="ca">${l.map(x=>{const dm=Math.floor(x.orb),mm=Math.round((x.orb-dm)*60);
     return `<span class="cai" title="${ASP[x.a][1]}, ${x.ap?'applying':'separating'}"><span class="ag ag${x.a}">${ASP[x.a][0]+V}</span> ${PG[x.o]+V} ${x.o} <small>${dm}°${pad(mm===60?59:mm)}′ ${x.ap?'↗':'↘'}</small></span>`;}).join('')}</div>`;}
+const TITHI=['Pratipada','Dwitiya','Tritiya','Chaturthi','Panchami','Shashthi','Saptami','Ashtami','Navami','Dashami','Ekadashi','Dwadashi','Trayodashi','Chaturdashi'];
+const MASA=['Chaitra','Vaishakha','Jyeshtha','Ashadha','Shravana','Bhadrapada','Ashwin','Kartik','Margashirsha','Pausha','Magha','Phalguna'];
+function elong(ms){const m=liveLon('Moon',ms,'t'),s=liveLon('Sun',ms,'t');return m===null||s===null?null:((m-s)%360+360)%360;}
+function tithiEdge(ms,target,dir){ // time when elongation crosses target (multiple of 12), searching forward (dir=1) or back (-1)
+  let a=ms,b=ms+dir*3*864e5;const f=t=>wrapd(elong(t)-target);
+  const fa=f(a);for(let k=0;k<40;k++){const m=(a+b)/2,fm=f(m);if((fm<0)===(fa<0))a=m;else b=m;}return (a+b)/2;}
+function tithiHtml(){
+  const now=Date.now(),e=elong(now);if(e===null)return '';
+  const n=Math.floor(e/12),shukla=n<15,idx=n%15;
+  const name=idx===14?(shukla?'Purnima':'Amavasya'):TITHI[idx];
+  const endMs=tithiEdge(now,((n+1)*12)%360,1),startMs=tithiEdge(now,n*12,-1);
+  const fmt=ms=>{const p=istParts(new Date(ms)),d=istDate(new Date(ms)),td=istDate(new Date());
+    return `${d===td?'today':d===addDays(td,1)?'tomorrow':d===addDays(td,-1)?'yesterday':wday(d)+' '+(+d.slice(8))+' '+MON[+d.slice(5,7)-1]} ${p.H%12||12}:${pad(p.M)} ${p.H<12?'AM':'PM'}`;};
+  // lunar month from the Sun's sidereal sign at the new moon that began it
+  const nj=nowJD();let prevNew=null,nextNew=null;
+  for(let k=lowerBound(nj)-1;k>=0;k--){const x=EV[k];if(x.T==='lun'&&x.x==='New'){prevNew=x;break;}}
+  for(let k=lowerBound(nj);k<EV.length;k++){const x=EV[k];if(x.T==='lun'&&x.x==='New'){nextNew=x;break;}}
+  let masa='',adhik=false,purn='';
+  if(prevNew){const s0=Math.floor(prevNew.ls/30);let mi=(s0+1)%12;adhik=!!(nextNew&&Math.floor(nextNew.ls/30)===s0);
+    masa=MASA[mi];const pm=shukla?masa:MASA[(mi+(adhik?0:1))%12];purn=pm;}
+  const pos=(e/360*100).toFixed(2),ticks=Array.from({length:29},(_,i)=>`<i style="left:${((i+1)/30*100).toFixed(3)}%"></i>`).join('');
+  const pct=Math.round((e-n*12)/12*100);
+  return `<div class="tithi">
+    <div class="th-top"><span class="th-m">${adhik?'Adhik ':''}${purn}<small> month</small></span><span class="th-n"><b>${shukla?'Shukla':'Krishna'} ${name}</b> <small>· tithi ${n+1} of 30</small></span></div>
+    <div class="th-bar" role="img" aria-label="Moon phase: ${shukla?'Shukla':'Krishna'} ${name}">${ticks}<span class="th-dot" style="left:${pos}%"></span></div>
+    <div class="th-lab"><span>Amavasya</span><span>Purnima</span><span>Amavasya</span></div>
+    <div class="th-sub">Began ${fmt(startMs)} · ends ${fmt(endMs)} · ${pct}% done${purn!==masa?` · Amanta month: ${adhik?'Adhik ':''}${masa}`:''}</div>
+  </div>`;
+}
 function renderBoard(){
   computeAspects();
   const st=currentState(),pt=posToday();
-  $('board').innerHTML=GROUPS.map(([t,list,cls])=>`<div class="grp"><h3>${t}</h3><div class="cards ${cls}">${list.map(b=>card(b,st,pt)).join('')}</div></div>`).join('')+'<div class="board-pad"></div>';
+  $('board').innerHTML=tithiHtml()+GROUPS.map(([t,list,cls])=>`<div class="grp"><h3>${t}</h3><div class="cards ${cls}">${list.map(b=>card(b,st,pt)).join('')}</div></div>`).join('')+'<div class="board-pad"></div>';
   $('now-meta').textContent=(Z==='s'?'Sidereal · Lahiri':'Tropical')+' · '+fmtDate(istDate(new Date()));
   const seen=new Set(),act=[];
   for(const b of ASPB)for(const x of (CUR[b]||[])){const k=[b,x.o].sort().join('|')+x.a;if(!seen.has(k)){seen.add(k);act.push([b,x]);}}

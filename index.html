@@ -158,11 +158,29 @@ th{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;col
 .card .nx{font-size:12px;color:var(--muted)}
 .card .nx b{color:var(--ink);font-weight:600}
 .board-pad{height:14px}
+@keyframes inR{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+.sec.in-r{animation:inR .22s ease-out}.sec.in-l{animation:inL .22s ease-out}
+@media (prefers-reduced-motion:reduce){.sec.in-r,.sec.in-l{animation:none}}
+.swipe-hint{display:none}
+@media (hover:none) and (pointer:coarse){.swipe-hint{display:block;text-align:center;font:500 11px/1 var(--mono);letter-spacing:.08em;color:var(--muted);padding:8px 0 0}}
 @media (max-width:640px){
   nav{flex-wrap:nowrap;overflow-x:auto;width:100%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   nav::-webkit-scrollbar{display:none}
   nav a{flex:none}
-  #sec-orbits thead{display:none}
+  #sec-eclipses thead,#sec-retrogrades thead,#sec-orbits thead{display:none}
+  #sec-eclipses .tw,#sec-retrogrades .tw{overflow:visible}
+  #sec-eclipses table,#sec-eclipses tbody,#sec-retrogrades table,#sec-retrogrades tbody{display:block}
+  #sec-eclipses tr,#sec-retrogrades tr{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:9px 14px;border-bottom:1px solid var(--rule)}
+  #sec-eclipses td,#sec-retrogrades td{border:0;padding:0;white-space:normal;background:transparent!important;box-shadow:none!important}
+  #sec-eclipses td:nth-child(even),#sec-retrogrades td:nth-child(even){text-align:right}
+  #sec-eclipses tr.next,#sec-retrogrades tr.next{background:var(--hi);box-shadow:inset 3px 0 0 var(--alert)}
+  #sec-eclipses tr.tle{background:var(--water-bg);box-shadow:inset 3px 0 0 var(--water)}
+  #sec-retrogrades td:first-child{grid-column:1 / -1}
+  #sec-retrogrades td:nth-child(2),#sec-retrogrades td:nth-child(4){text-align:left}
+  #sec-retrogrades td:nth-child(3),#sec-retrogrades td:nth-child(5){text-align:right}
+  #sec-retrogrades td:nth-child(6){grid-column:1 / -1;text-align:left;color:var(--muted);font-size:12px}
+  #sec-retrogrades td:nth-child(6):not(:empty)::after{content:' days retrograde'}
   #sec-orbits table,#sec-orbits tbody{display:block}
   #sec-orbits tr{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:9px 14px;border-bottom:1px solid var(--rule)}
   #sec-orbits td{border:0;padding:0;white-space:normal}
@@ -491,6 +509,7 @@ footer{border-top:2px solid var(--ink);padding:12px 0;color:var(--muted);font-si
 <div class="ticker" aria-live="off"><div class="wrap" id="ticker"><span class="tk live"><i>IST</i><span id="clock">--:--:--</span></span></div></div>
 
 <main class="wrap">
+  <div class="swipe-hint">← swipe to change tab →</div>
   <div id="loading" class="loading">Loading ephemeris data…</div>
 
   <!-- 90 DAYS -->
@@ -1091,11 +1110,30 @@ function renderOrbits(){
 
 // ---- routing ----
 const SECS=['feed','planets','eclipses','retrogrades','positions','orbits','method'];
+let curSec=null,swipeDir=0;
 function route(){
   const h=(location.hash||'#feed').slice(1),cur=SECS.includes(h)?h:'feed';
-  SECS.forEach(s=>$('sec-'+s).classList.toggle('on',s===cur));
-  document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+cur?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
+  const dir=swipeDir||(curSec?Math.sign(SECS.indexOf(cur)-SECS.indexOf(curSec)):0);swipeDir=0;
+  SECS.forEach(s=>{const el=$('sec-'+s);el.classList.toggle('on',s===cur);el.classList.remove('in-l','in-r');});
+  if(curSec&&cur!==curSec&&dir){const el=$('sec-'+cur);void el.offsetWidth;el.classList.add(dir>0?'in-r':'in-l');}
+  document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')==='#'+cur){a.setAttribute('aria-current','page');
+    const n=a.parentElement;n.scrollTo({left:a.offsetLeft-(n.clientWidth-a.offsetWidth)/2,behavior:curSec?'smooth':'auto'});}else a.removeAttribute('aria-current');});
+  {const top=document.querySelector('main').offsetTop-4;if(curSec&&cur!==curSec&&window.scrollY>top)window.scrollTo(0,top);}
+  curSec=cur;
 }
+// swipe left / right anywhere on the content to change tab
+(function(){
+  let x0=0,y0=0,t0=0,ok=false,sc=null,sl0=0;
+  const scroller=el=>{for(;el&&el!==document.body;el=el.parentElement){
+    if(el.scrollWidth>el.clientWidth+4){const ox=getComputedStyle(el).overflowX;if(ox==='auto'||ox==='scroll')return el;}}return null;};
+  const main=document.querySelector('main');
+  main.addEventListener('touchstart',e=>{if(e.touches.length!==1){ok=false;return;}const t=e.touches[0];x0=t.clientX;y0=t.clientY;t0=Date.now();ok=true;sc=scroller(e.target);sl0=sc?sc.scrollLeft:0;},{passive:true});
+  main.addEventListener('touchend',e=>{if(!ok)return;ok=false;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
+    if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.6||Date.now()-t0>800)return;
+    if(sc&&Math.abs(sc.scrollLeft-sl0)>2)return; // the strip or table scrolled instead
+    const i=SECS.indexOf(curSec||'feed'),j=i+(dx<0?1:-1);if(j<0||j>=SECS.length)return;
+    swipeDir=dx<0?1:-1;location.hash='#'+SECS[j];},{passive:true});
+})();
 let feedReady=false;
 function renderAll(){renderBoard();renderTicker();if(feedReady)renderFeed();renderPlanet();renderEclipses();renderRetro();renderPositions();renderOrbits();}
 function setZ(z){Z=z;try{localStorage.setItem('skyops-z',z);}catch(e){}$('z-s').setAttribute('aria-pressed',z==='s');$('z-t').setAttribute('aria-pressed',z==='t');renderAll();}

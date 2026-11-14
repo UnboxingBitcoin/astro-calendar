@@ -1234,10 +1234,11 @@ function rrSentence(e){
   else if(e.T==='ven')h=`<b>${PG.Venus+V} Venus · ${e.k}</b>${e.e?` <span class="sub">${e.e}° from the Sun</span>`:''}${e.m?` <span class="sub">magnitude ${e.m}</span>`:''}`;
   else if(e.T==='ing'){const ns=e.p==='Rahu'?` <span class="sub">(Ketu → ${sname((e.s+6)%12)})</span>`:'';h=`<b>${PG[e.p]+V} ${e.p}</b> ${e.r&&e.p!=='Rahu'?'re-enters':'enters'} ${sn(e.s)}${ns}`;}
   else if(e.T==='asp'){const nd=e.q==='Rahu';
-    const lead=nd?`<b>${PG[e.p]+V} ${e.p}</b> <span class="ag ag${e.a}">${ASP[e.a][0]+V}</span> ${PG.Rahu+V} Rahu <span class="sub">(${PG.Ketu+V} Ketu ${ASP[e.a===0?180:0][0]+V} ${e.p})</span>`
+    const lead=nd?(e.a===0?`<b>${PG[e.p]+V} ${e.p}</b> <span class="ag ag0">${ASP[0][0]+V}</span> <b>${PG.Rahu+V} Rahu</b> <span class="sub">(${PG.Ketu+V} Ketu ${ASP[180][0]+V} ${e.p})</span>`
+        :`<b>${PG[e.p]+V} ${e.p}</b> <span class="ag ag0">${ASP[0][0]+V}</span> <b>${PG.Ketu+V} Ketu</b> <span class="sub">(${PG.Rahu+V} Rahu ${ASP[180][0]+V} ${e.p})</span>`)
       :`<b>${PG[e.p]+V} ${e.p}</b> <span class="ag ag${e.a}">${ASP[e.a][0]+V}</span> <b>${PG[e.q]+V} ${e.q}</b>`;
     const rt=(e.r?`${e.p} ℞`:'')+(e.r2&&!nd?`${e.r?' · ':''}${e.q} ℞`:'');
-    h=`${lead} <span class="an">${ASP[e.a][1]}</span>${rt?` <span class="sub">${rt}</span>`:''}`;}
+    h=`${lead} <span class="an">${nd?'conjunction':ASP[e.a][1]}</span>${rt?` <span class="sub">${rt}</span>`:''}`;}
   return `${h} <span class="rrd">${rrBr(e)}</span>`;
 }
 function rrLon(e){return e.T==='ing'||e.T==='orb'?null:lonOf(e);}

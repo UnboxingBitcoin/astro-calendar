@@ -68,7 +68,7 @@ nav a:hover{border-color:var(--ink)}
 @keyframes pulse{50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.live::before{animation:none}}
 /* panels */
-main{padding:16px 0 40px}
+main{overflow-x:hidden;padding:16px 0 40px}
 .grid{display:grid;gap:14px}
 .panel{background:var(--panel);border:1px solid var(--ink)}
 .ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--ink)}
@@ -1115,24 +1115,58 @@ function route(){
   const h=(location.hash||'#feed').slice(1),cur=SECS.includes(h)?h:'feed';
   const dir=swipeDir||(curSec?Math.sign(SECS.indexOf(cur)-SECS.indexOf(curSec)):0);swipeDir=0;
   SECS.forEach(s=>{const el=$('sec-'+s);el.classList.toggle('on',s===cur);el.classList.remove('in-l','in-r');});
-  if(curSec&&cur!==curSec&&dir){const el=$('sec-'+cur);void el.offsetWidth;el.classList.add(dir>0?'in-r':'in-l');}
+  if(curSec&&cur!==curSec&&dir&&!swipeAnim){const el=$('sec-'+cur);void el.offsetWidth;el.classList.add(dir>0?'in-r':'in-l');}
   document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')==='#'+cur){a.setAttribute('aria-current','page');
     const n=a.parentElement;n.scrollTo({left:a.offsetLeft-(n.clientWidth-a.offsetWidth)/2,behavior:curSec?'smooth':'auto'});}else a.removeAttribute('aria-current');});
   {const top=document.querySelector('main').offsetTop-4;if(curSec&&cur!==curSec&&window.scrollY>top)window.scrollTo(0,top);}
   curSec=cur;
 }
-// swipe left / right anywhere on the content to change tab
+// swipe left / right: the page follows your finger, then slides to the next tab
+let swipeAnim=false;
 (function(){
-  let x0=0,y0=0,t0=0,ok=false,sc=null,sl0=0;
-  const scroller=el=>{for(;el&&el!==document.body;el=el.parentElement){
-    if(el.scrollWidth>el.clientWidth+4){const ox=getComputedStyle(el).overflowX;if(ox==='auto'||ox==='scroll')return el;}}return null;};
   const main=document.querySelector('main');
-  main.addEventListener('touchstart',e=>{if(e.touches.length!==1){ok=false;return;}const t=e.touches[0];x0=t.clientX;y0=t.clientY;t0=Date.now();ok=true;sc=scroller(e.target);sl0=sc?sc.scrollLeft:0;},{passive:true});
-  main.addEventListener('touchend',e=>{if(!ok)return;ok=false;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
-    if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.6||Date.now()-t0>800)return;
-    if(sc&&Math.abs(sc.scrollLeft-sl0)>2)return; // the strip or table scrolled instead
-    const i=SECS.indexOf(curSec||'feed'),j=i+(dx<0?1:-1);if(j<0||j>=SECS.length)return;
-    swipeDir=dx<0?1:-1;location.hash='#'+SECS[j];},{passive:true});
+  let x0=0,y0=0,lx=0,lt=0,v=0,axis=null,drag=false,el=null,sc=null,w=1,tracking=false;
+  const scroller=n=>{for(;n&&n!==main;n=n.parentElement){if(n.scrollWidth>n.clientWidth+4){const ox=getComputedStyle(n).overflowX;if(ox==='auto'||ox==='scroll')return n;}}return null;};
+  const canScroll=(n,dx)=>n&&(dx<0?n.scrollLeft<n.scrollWidth-n.clientWidth-1:n.scrollLeft>0);
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const set=(t,o,tr)=>{el.style.transition=tr||'none';el.style.transform=t;el.style.opacity=o;};
+  const clear=n=>{n.style.transition='';n.style.transform='';n.style.opacity='';n.style.willChange='';};
+  main.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){tracking=false;return;}
+    const t=e.touches[0];x0=lx=t.clientX;y0=t.clientY;lt=performance.now();v=0;axis=null;drag=false;tracking=true;
+    sc=scroller(e.target);el=$('sec-'+(curSec||'feed'));w=main.clientWidth||window.innerWidth;
+  },{passive:true});
+  main.addEventListener('touchmove',e=>{
+    if(!tracking)return;const t=e.touches[0],dx=t.clientX-x0,dy=t.clientY-y0;
+    if(!axis){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;
+      axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';
+      if(axis==='y'||canScroll(sc,dx)){tracking=false;return;}
+      drag=true;el.style.willChange='transform,opacity';}
+    if(!drag)return;
+    e.preventDefault();
+    const now=performance.now();v=(t.clientX-lx)/Math.max(1,now-lt);lx=t.clientX;lt=now;
+    const i=SECS.indexOf(curSec||'feed'),edge=(dx>0&&i===0)||(dx<0&&i===SECS.length-1);
+    const d=edge?dx/3.5:dx;
+    set(`translateX(${d}px)`,String(1-Math.min(.35,Math.abs(d)/w*.6)));
+  },{passive:false});
+  const end=()=>{
+    if(!tracking||!drag){tracking=false;return;}tracking=false;drag=false;
+    const dx=lx-x0,i=SECS.indexOf(curSec||'feed'),dir=dx<0?1:-1,j=i+dir;
+    const commit=j>=0&&j<SECS.length&&(Math.abs(dx)>w*.22||(Math.abs(v)>.45&&Math.abs(dx)>30&&Math.sign(v)===Math.sign(dx)));
+    const cur=el;
+    if(!commit){set('translateX(0)','1','transform .32s cubic-bezier(.2,.9,.3,1.15),opacity .25s');setTimeout(()=>clear(cur),340);return;}
+    const ms=reduce?0:Math.max(140,Math.min(260,(w-Math.abs(dx))/Math.max(.8,Math.abs(v))));
+    set(`translateX(${-dir*w}px)`,'0',`transform ${ms}ms cubic-bezier(.3,.6,.4,1),opacity ${ms}ms`);
+    setTimeout(()=>{
+      clear(cur);swipeAnim=true;location.hash='#'+SECS[j];
+      requestAnimationFrame(()=>{const nx=$('sec-'+SECS[j]);if(reduce){swipeAnim=false;return;}
+        nx.style.transition='none';nx.style.transform=`translateX(${dir*w*.35}px)`;nx.style.opacity='.4';void nx.offsetWidth;
+        nx.style.transition='transform .3s cubic-bezier(.2,.8,.25,1),opacity .25s ease-out';nx.style.transform='translateX(0)';nx.style.opacity='1';
+        setTimeout(()=>{clear(nx);swipeAnim=false;},320);});
+    },ms);
+  };
+  main.addEventListener('touchend',end,{passive:true});
+  main.addEventListener('touchcancel',()=>{if(drag&&el){set('translateX(0)','1','transform .25s ease-out,opacity .25s');const c=el;setTimeout(()=>clear(c),260);}tracking=false;drag=false;},{passive:true});
 })();
 let feedReady=false;
 function renderAll(){renderBoard();renderTicker();if(feedReady)renderFeed();renderPlanet();renderEclipses();renderRetro();renderPositions();renderOrbits();}
